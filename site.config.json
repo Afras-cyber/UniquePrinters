@@ -1,0 +1,161 @@
+{
+  "shop": {
+    "name": "Your Shop Name",
+    "tagline": "Printers, Stationery & Books for Everyone",
+    "logoUrl": "/assets/logo.png",
+    "faviconUrl": "/assets/favicon.png",
+    "currency": "LKR",
+    "locale": "en-LK"
+  },
+  "contact": {
+    "phone": "+94 77 123 4567",
+    "whatsapp": "+94 77 123 4567",
+    "email": "info@yourshop.com",
+    "address": {
+      "line1": "123 Main Street",
+      "line2": "",
+      "city": "Kurunegala",
+      "province": "North Western Province",
+      "country": "Sri Lanka",
+      "mapUrl": "https://maps.google.com/?q=your-shop-location"
+    },
+    "businessHours": {
+      "monToFri": "8:30 AM - 6:30 PM",
+      "saturday": "8:30 AM - 5:00 PM",
+      "sunday": "Closed"
+    }
+  },
+  "socialMedia": {
+    "facebook": "https://facebook.com/yourshop",
+    "instagram": "https://instagram.com/yourshop",
+    "tiktok": "https://tiktok.com/@yourshop",
+    "youtube": "",
+    "whatsappChat": "https://wa.me/94771234567",
+    "whatsappMessage": "Hi, I'm interested in a product from your shop."
+  },
+  "announcement": {
+    "enabled": false,
+    "message": "We will be closed on 26th October",
+    "type": "info",
+    "startDate": "",
+    "endDate": "2026-10-26",
+    "dismissible": true
+  },
+  "categories": [
+    {
+      "name": "Printing",
+      "type": "service"
+    },
+    {
+      "name": "Scanning",
+      "type": "service"
+    },
+    {
+      "name": "Photocopy",
+      "type": "service"
+    },
+    {
+      "name": "Typing",
+      "type": "service"
+    },
+    {
+      "name": "Books",
+      "type": "product"
+    },
+    {
+      "name": "Reload",
+      "type": "service"
+    },
+    {
+      "name": "Stationary Items",
+      "type": "product"
+    },
+    {
+      "name": "Toys",
+      "type": "product"
+    }
+  ],
+  "booksShowcase": {
+    "enabled": true,
+    "statusTags": [
+      {
+        "label": "New Arrival",
+        "color": "info"
+      },
+      {
+        "label": "Most Popular",
+        "color": "accent"
+      },
+      {
+        "label": "Best Seller",
+        "color": "success"
+      },
+      {
+        "label": "Limited Stock",
+        "color": "warning"
+      },
+      {
+        "label": "Out of Stock",
+        "color": "danger"
+      }
+    ],
+    "showRelatedBooks": true,
+    "relatedBooksMatchBy": "genre"
+  },
+  "theme": {
+    "fontFamily": "Poppins, sans-serif",
+    "googleFontUrl": "https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap",
+    "fontSize": {
+      "base": "16px",
+      "small": "14px",
+      "body": "16px",
+      "bodyLarge": "18px",
+      "heading3": "22px",
+      "heading2": "26px",
+      "heading1": "32px",
+      "button": "16px"
+    },
+    "lineHeight": {
+      "body": 1.65,
+      "heading": 1.3
+    },
+    "colors": {
+      "light": {
+        "primary": "#D8590E",
+        "primaryHover": "#B8460A",
+        "secondary": "#1D9E75",
+        "accent": "#D4537E",
+        "background": "#FFFFFF",
+        "surface": "#F7F5F0",
+        "textPrimary": "#2C2C2A",
+        "textSecondary": "#5F5E5A",
+        "border": "#E3E1D8",
+        "success": "#3B8B22",
+        "warning": "#BA7517",
+        "danger": "#C0392B"
+      },
+      "dark": {
+        "primary": "#F2A15E",
+        "primaryHover": "#F7BB84",
+        "secondary": "#5DCAA5",
+        "accent": "#ED93B1",
+        "background": "#1A1A18",
+        "surface": "#242422",
+        "textPrimary": "#F1EFE8",
+        "textSecondary": "#B4B2A9",
+        "border": "#3A3A36",
+        "success": "#7BB854",
+        "warning": "#F2B84C",
+        "danger": "#E06C5C"
+      }
+    },
+    "borderRadius": "10px",
+    "defaultMode": "system"
+  },
+  "features": {
+    "showOffersBanner": true,
+    "showSocialLinksInFooter": true,
+    "enableDarkModeToggle": true,
+    "enableWhatsappFloatingButton": true
+  }
+}
