@@ -8,14 +8,14 @@
     "locale": "en-LK"
   },
   "contact": {
-    "phone": "+94 77 123 4567",
-    "whatsapp": "+94 77 123 4567",
-    "email": "info@yourshop.com",
+    "phone": "+94 76 383 6945",
+    "whatsapp": "+94763836945",
+    "email": "[EMAIL_ADDRESS]",
     "address": {
-      "line1": "123 Main Street",
+      "line1": "No 571 /2, MEEGAHAGODALLA, THALDUWA",
       "line2": "",
-      "city": "Kurunegala",
-      "province": "North Western Province",
+      "city": "AVISSAWELLA",
+      "province": "Western Province",
       "country": "Sri Lanka",
       "mapUrl": "https://maps.google.com/?q=your-shop-location"
     },
@@ -30,7 +30,7 @@
     "instagram": "https://instagram.com/yourshop",
     "tiktok": "https://tiktok.com/@yourshop",
     "youtube": "",
-    "whatsappChat": "https://wa.me/94771234567",
+    "whatsappChat": "https://wa.me/+94763836945",
     "whatsappMessage": "Hi, I'm interested in a product from your shop."
   },
   "announcement": {
