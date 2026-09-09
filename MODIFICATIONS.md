@@ -2,7 +2,7 @@
 
 > **Location:** Main Road, Wilgoda, Kurunegala, Sri Lanka  
 > **Tech Stack:** Vite.js + React 18 + TypeScript + Supabase BaaS + Vanilla CSS  
-> **Last Updated:** 2026-09-09
+> **Last Updated:** 2026-09-09 (Session 2 — Checkpoint Resume)
 
 This document serves as the project's persistent single source of truth for all modifications, component structures, asset references, design decisions, and future roadmap items across sessions and token resets.
 
@@ -35,6 +35,13 @@ Unique_Printers/
 │   │   │   ├── MobileHeaderHero.tsx              ← Preserved Mobile Hero (Time, Open status, Call, WhatsApp)
 │   │   │   ├── MobileBottomNav.tsx               ← Preserved Mobile 5-tab bottom dock
 │   │   │   └── Footer.tsx                        ← Comprehensive footer with maps & contact
+│   │   ├── pages/                                ← [NEW] Full dedicated page components
+│   │   │   ├── HomePage.tsx                      ← Home page wrapper (all sections)
+│   │   │   ├── BooksPage.tsx                     ← Full books catalog page (search, filters, sort)
+│   │   │   ├── DesignsPage.tsx                   ← Full designs gallery page (category filters)
+│   │   │   └── ServiceDetailPage.tsx             ← Dedicated service info page (per serviceId)
+│   │   ├── search/                               ← [NEW] Global search system
+│   │   │   └── GlobalSearchModal.tsx             ← Ctrl+K modal with live dynamic results
 │   │   ├── sections/
 │   │   │   ├── DesktopHero.tsx                   ← Baseline desktop 3D layered cards hero
 │   │   │   ├── ServicesSection.tsx               ← 6 core services with WhatsApp inquiry links
@@ -50,12 +57,13 @@ Unique_Printers/
 │   ├── config/
 │   │   └── siteConfig.ts                         ← Typed configuration reader for site.config.json
 │   ├── data/
-│   │   └── sampleData.ts                         ← Comprehensive catalog datasets with prices in LKR
+│   │   ├── sampleData.ts                         ← Comprehensive catalog datasets with prices in LKR
+│   │   └── serviceDetailsData.ts                 ← [NEW] Rich service detail data (per service page)
 │   ├── lib/
 │   │   └── supabase.ts                           ← Supabase client with offline/mock resilience
 │   ├── types/
 │   │   └── index.ts                              ← Strict TypeScript interfaces
-│   ├── App.tsx                                   ← Main layout coordinator & view switcher
+│   ├── App.tsx                                   ← [UPDATED] Full page-router coordinator
 │   ├── index.css                                 ← Design system tokens, typography, and animations
 │   ├── main.tsx                                  ← React DOM mount
 │   └── vite-env.d.ts                             ← Vite environment typings
@@ -88,15 +96,15 @@ As explicitly specified by the user:
   - Top black bar with Sri Lanka live date & time clock (`SRI LANKA • WED, 09 SEPT  01:46:22 PM`) and `[DESKTOP VIEW]` switch.
   - Official Unique Printers logo with Wilgoda Kurunegala label.
   - Live store status badge: `● OPEN NOW`, `Closes 8:00 PM`, `LIVE • Colombo`.
-  - Search bar with microphone/voice search icon.
+  - Search bar (now opens `GlobalSearchModal`) with microphone/voice search icon.
   - High-conversion dual CTA buttons:
     - **"📞 Call Shop"** (`tel:+94771234567`)
     - **"💬 WhatsApp"** (`wa.me/94771234567`)
 - **Bottom Navbar (Kept as is)**:
   - Fixed 5-item bottom dock:
     1. `Home`
-    2. `Designs`
-    3. `Books`
+    2. `Designs` → navigates to `DesignsPage`
+    3. `Books` → navigates to `BooksPage`
     4. `Offers`
     5. `Contact`
   - Responsive padding (`.mobile-bottom-space`) ensures no page content is hidden behind the dock.
@@ -113,45 +121,105 @@ As explicitly specified by the user:
 
 ---
 
-## 3. Interactive Features & E-Commerce Workflow
+## 3. Header Modifications (Per User Requests)
 
-1. **WhatsApp Order Generator (`CartDrawer.tsx`)**:
+- **Font resized** for better readability: nav links at `14.5px` (was default).
+- **"Order on WhatsApp" button removed** from desktop header view.
+- **Shop name font decreased** to `15px` for cleaner proportion.
+- **Location label font decreased** to `9.5px`.
+- **Search area** is now a **global search modal**:
+  - Opens via clicking the search button in header OR `Ctrl/Cmd+K` keyboard shortcut.
+  - Shows live dynamic results while typing (books, designs, services, stationery).
+  - `GlobalSearchModal.tsx` in `src/components/search/`.
+
+---
+
+## 4. Services — Dedicated Pages
+
+Each service now has a full dedicated page (`ServiceDetailPage.tsx`):
+
+| Service | Page Content |
+|---|---|
+| Printing | Rates, paper sizes, turnaround, WhatsApp CTA |
+| Scanning | Formats, pricing, WhatsApp CTA |
+| Photocopy | B&W/Color pricing, volume rates, WhatsApp CTA |
+| Typing | Document types, per-page pricing, WhatsApp CTA |
+| Reload | Network list, how-to, WhatsApp CTA + book navigation |
+| School Books | Sample books with add-to-cart + navigation to BooksPage |
+
+- Data lives in `src/data/serviceDetailsData.ts`.
+- Navigation: clicking any service card → `ServiceDetailPage` with Back button.
+
+---
+
+## 5. Designs & Printing Works — Full Page
+
+`DesignsPage.tsx` provides:
+- Full-gallery view with category filter chips (All, Invitations, Posters, Banners, Business Cards, Certificates).
+- Preview lightbox opens `ImageModal.tsx` for high-res view.
+- WhatsApp icon on each card → pre-filled message **"I need this style invitation: [title]"** or similar.
+- Custom invitation CTA button for bespoke orders.
+
+---
+
+## 6. Books — Dedicated Page
+
+`BooksPage.tsx` provides:
+- Easy & user-friendly grid with large cards.
+- Filters: Grade (Grade 5, 6, 8, 10, O/L, A/L) + Category (Workbooks, Past Papers, Exam Packs, Language, Short Notes).
+- Sort: Featured, Price Low→High, Price High→Low.
+- Search by title, grade, or category.
+- Add to cart → triggers `CartDrawer` with WhatsApp order format.
+- Status badges: New Arrival, Most Popular, Best Seller, Limited Stock, Out of Stock.
+
+---
+
+## 7. Interactive Features & E-Commerce Workflow
+
+1. **Page Router (`App.tsx`)**: Full SPA page routing — `home | books | designs | service` — without React Router dependency. Clean state-driven navigation.
+
+2. **Global Search Modal (`GlobalSearchModal.tsx`)**:
+   - Trigger: search icon OR `Ctrl/Cmd+K`.
+   - Live dynamic results grouped by: Books, Designs, Services, Stationery.
+   - Actions: add book to cart, open design lightbox, navigate to service page.
+
+3. **WhatsApp Order Generator (`CartDrawer.tsx`)**:
    - Customers can add school books, new arrivals, or sale packages to their cart.
-   - Clicking "Confirm & Order on WhatsApp" automatically opens WhatsApp with a pre-formatted message:
-     ```
-     *NEW ORDER / INQUIRY - UNIQUE PRINTERS*
-     ---------------------------------
-     1. Grade 6 Science Workbook (x1) - Rs. 850
-     2. G.C.E O/L Mathematics Past Papers (x1) - Rs. 1,200
-     ---------------------------------
-     *Total Amount:* Rs. 2,050
-     Hi Unique Printers, please let me know availability and delivery/pickup details at your Wilgoda shop!
-     ```
+   - Clicking "Confirm & Order on WhatsApp" automatically opens WhatsApp with a pre-formatted message.
    - Eliminates customer checkout friction, perfectly suited for local Sri Lankan retail.
 
-2. **Live Promo Countdown (`OffersSection.tsx`)**:
+4. **Live Promo Countdown (`OffersSection.tsx`)**:
    - Active countdown timer for the "Back to School" promotion.
    - One-click copy for promo code `SCHOOL20`.
 
-3. **Emergency Notice Banner (`AnnouncementBanner.tsx`)**:
+5. **Emergency Notice Banner (`AnnouncementBanner.tsx`)**:
    - Configurable via `site.config.json` (`announcement.enabled`).
    - Supports `urgent` (maroon) and `info` (emerald) styling with dismiss action.
 
-4. **Live Search Filter**:
-   - Synchronized across the header search bar and books catalog.
-
-5. **Supabase Integration (`src/lib/supabase.ts`)**:
+6. **Supabase Integration (`src/lib/supabase.ts`)**:
    - Typed client initialized with environment variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
    - Graceful offline/development fallback so the site remains fully operational without remote database downtime.
 
 ---
 
-## 4. Build & Verification Status
+## 8. Build & Verification Status
 
 - **Build Command:** `npm run build` (`tsc && vite build`)
-- **Status:** **PASSING (0 errors, 0 warnings)**
-- **Output Bundle:**
+- **Status:** **PASSING (0 errors, 0 warnings)** ✅
+- **Last Build Output:**
   - `dist/index.html` (1.05 kB)
   - `dist/assets/index-*.css` (2.66 kB)
-  - `dist/assets/index-*.js` (232 kB)
-- **Dev Server:** `npm run dev` running on `http://localhost:5173`
+  - `dist/assets/index-*.js` (277 kB)
+- **Dev Server:** `npm run dev` → `http://localhost:5173`
+
+---
+
+## 9. Remaining / Future Work
+
+- [ ] **Contact page** — Dedicated contact/info page with Google Maps embed, business hours, all social links.
+- [ ] **Stationery Page** — Full stationery catalog page (currently shown as a section on Home).
+- [ ] **Offers Page** — Dedicated offers page (currently shown as a section on Home).
+- [ ] **Admin Dashboard** — Supabase Auth-protected dashboard for managing products, books, banners.
+- [ ] **Supabase data fetching** — Replace sample data with live Supabase queries once DB is set up.
+- [ ] **SEO meta tags** — Add page-specific title/description meta tags.
+- [ ] **PWA** — Service worker + manifest for offline use & mobile install.

@@ -3,15 +3,13 @@ import { Search, Mic, Phone, MessageCircle, Monitor } from 'lucide-react';
 import { siteConfig } from '../../config/siteConfig';
 
 interface MobileHeaderHeroProps {
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
+  onOpenSearch: () => void;
   onToggleForceDesktop?: () => void;
   isForcedDesktop?: boolean;
 }
 
 export const MobileHeaderHero: React.FC<MobileHeaderHeroProps> = ({
-  searchQuery,
-  onSearchChange,
+  onOpenSearch,
   onToggleForceDesktop,
   isForcedDesktop = false
 }) => {
@@ -119,8 +117,8 @@ export const MobileHeaderHero: React.FC<MobileHeaderHeroProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div
                 style={{
-                  width: '46px',
-                  height: '46px',
+                  width: '44px',
+                  height: '44px',
                   borderRadius: '12px',
                   backgroundColor: '#000000',
                   padding: '4px',
@@ -151,7 +149,7 @@ export const MobileHeaderHero: React.FC<MobileHeaderHeroProps> = ({
                 >
                   UNIQUE PRINTERS
                 </h1>
-                <div style={{ fontSize: '11px', color: '#777777', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                <div style={{ fontSize: '10px', color: '#777777', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
                   <span>📍</span>
                   <span>Wilgoda, Kurunegala</span>
                 </div>
@@ -181,8 +179,9 @@ export const MobileHeaderHero: React.FC<MobileHeaderHeroProps> = ({
             </div>
           </div>
 
-          {/* Search Box with Voice/Mic */}
+          {/* Search Box (Triggers Global Search Modal) */}
           <div
+            onClick={onOpenSearch}
             style={{
               marginTop: '14px',
               display: 'flex',
@@ -191,39 +190,15 @@ export const MobileHeaderHero: React.FC<MobileHeaderHeroProps> = ({
               backgroundColor: '#F7F7F7',
               borderRadius: '999px',
               padding: '10px 14px',
-              border: '1px solid rgba(0,0,0,0.06)'
+              border: '1px solid rgba(0,0,0,0.06)',
+              cursor: 'pointer'
             }}
           >
-            <Search size={16} style={{ color: '#999999' }} />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search books, invitations..."
-              style={{
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                fontSize: '13.5px',
-                color: '#121212',
-                width: '100%'
-              }}
-            />
-            <button
-              aria-label="Voice search"
-              onClick={() => alert('Voice search activated: speak book title or printing service')}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#777777',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '2px'
-              }}
-            >
-              <Mic size={16} />
-            </button>
+            <Search size={16} style={{ color: '#B77B3D' }} />
+            <span style={{ fontSize: '13.5px', color: '#888888', flex: 1 }}>
+              Search books, invitations, services...
+            </span>
+            <Mic size={16} style={{ color: '#777777' }} />
           </div>
 
           {/* Dual Prominent CTA Buttons (Preserved from Mobile UI PDF) */}

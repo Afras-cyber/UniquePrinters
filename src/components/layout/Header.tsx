@@ -1,23 +1,21 @@
 import React, { useState } from 'react';
-import { Search, ShoppingBag, MessageCircle, Moon, Sun, Clock, Phone, MapPin } from 'lucide-react';
+import { Search, ShoppingBag, Moon, Sun, Clock, Phone, MapPin, Command } from 'lucide-react';
 import { siteConfig } from '../../config/siteConfig';
 
 interface HeaderProps {
   cartCount: number;
   onOpenCart: () => void;
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
+  onOpenSearch: () => void;
   darkMode: boolean;
   onToggleDarkMode: () => void;
   activeNav: string;
-  onNavClick: (id: string) => void;
+  onNavClick: (pageOrSection: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   cartCount,
   onOpenCart,
-  searchQuery,
-  onSearchChange,
+  onOpenSearch,
   darkMode,
   onToggleDarkMode,
   activeNav,
@@ -28,8 +26,9 @@ export const Header: React.FC<HeaderProps> = ({
   const navLinks = [
     { label: 'Home', id: 'home' },
     { label: 'Services', id: 'services' },
-    { label: 'Designs', id: 'designs' },
-    { label: 'Books & Stationery', id: 'books-stationery' },
+    { label: 'Designs & Printing', id: 'designs' },
+    { label: 'School Books', id: 'books' },
+    { label: 'Stationery', id: 'stationery' },
     { label: 'Offers', id: 'offers' },
     { label: 'Contact', id: 'contact' }
   ];
@@ -41,15 +40,15 @@ export const Header: React.FC<HeaderProps> = ({
         style={{
           backgroundColor: '#121212',
           color: '#F5E9D3',
-          fontSize: '12px',
+          fontSize: '11.5px',
           borderBottom: '1px solid rgba(255,255,255,0.08)'
         }}
       >
         <div
           className="site-container"
           style={{
-            paddingTop: '9px',
-            paddingBottom: '9px',
+            paddingTop: '8px',
+            paddingBottom: '8px',
             display: 'flex',
             flexWrap: 'wrap',
             alignItems: 'center',
@@ -57,31 +56,31 @@ export const Header: React.FC<HeaderProps> = ({
             gap: '12px'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#B77B3D', display: 'inline-block' }} />
-              <MapPin size={13} style={{ color: '#B77B3D' }} />
+              <MapPin size={12} style={{ color: '#B77B3D' }} />
               Wilgoda, Kurunegala, Sri Lanka
             </span>
             <span style={{ opacity: 0.3 }} className="desktop-only">|</span>
             <a
               href={`tel:${siteConfig.contact.phone.replace(/\s+/g, '')}`}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'inherit', textDecoration: 'none' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'inherit', textDecoration: 'none' }}
             >
-              <Phone size={13} style={{ color: '#B77B3D' }} />
+              <Phone size={12} style={{ color: '#B77B3D' }} />
               {siteConfig.contact.phone}
             </a>
             <span style={{ opacity: 0.3 }} className="desktop-only">|</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Clock size={13} style={{ color: '#B77B3D' }} />
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Clock size={12} style={{ color: '#B77B3D' }} />
               Open 8AM - 8PM • 7 Days
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span
               style={{
-                padding: '2px 10px',
+                padding: '2px 9px',
                 borderRadius: '999px',
                 backgroundColor: '#1F1F1F',
                 border: '1px solid rgba(255,255,255,0.12)',
@@ -92,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
               සිංහල | English
             </span>
             <span style={{ opacity: 0.65, fontSize: '11px' }} className="desktop-only">
-              Trusted since 2013 • 10+ Years
+              Trusted local shop since 2013
             </span>
           </div>
         </div>
@@ -104,7 +103,7 @@ export const Header: React.FC<HeaderProps> = ({
           position: 'sticky',
           top: 0,
           zIndex: 40,
-          backgroundColor: darkMode ? 'rgba(26,26,26,0.92)' : 'rgba(255,251,245,0.92)',
+          backgroundColor: darkMode ? 'rgba(26,26,26,0.94)' : 'rgba(255,251,245,0.94)',
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
           borderBottom: darkMode ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(18,18,18,0.06)',
@@ -114,33 +113,33 @@ export const Header: React.FC<HeaderProps> = ({
         <div
           className="site-container"
           style={{
-            height: '76px',
+            height: '70px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '16px'
           }}
         >
-          {/* Brand Logo & Name */}
+          {/* Brand Logo & Name (Decreased font size per user request) */}
           <div
             onClick={() => onNavClick('home')}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '12px',
+              gap: '10px',
               cursor: 'pointer',
               textDecoration: 'none'
             }}
           >
             <div
               style={{
-                width: '50px',
-                height: '50px',
+                width: '44px',
+                height: '44px',
                 borderRadius: '50%',
                 backgroundColor: '#FFFFFF',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                boxShadow: '0 3px 12px rgba(0,0,0,0.06)',
                 border: '1px solid rgba(18,18,18,0.1)',
-                padding: '5px',
+                padding: '4px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -157,9 +156,9 @@ export const Header: React.FC<HeaderProps> = ({
               <div
                 style={{
                   fontWeight: 800,
-                  letterSpacing: '-0.02em',
-                  fontSize: '17px',
-                  lineHeight: 1.1,
+                  letterSpacing: '-0.01em',
+                  fontSize: '15px', // Decreased size for clean proportion
+                  lineHeight: 1.15,
                   color: darkMode ? '#F5E9D3' : '#121212'
                 }}
               >
@@ -167,11 +166,11 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
               <div
                 style={{
-                  fontSize: '10px',
-                  letterSpacing: '0.18em',
+                  fontSize: '9.5px', // Decreased location label size
+                  letterSpacing: '0.16em',
                   fontWeight: 700,
                   color: '#9A652F',
-                  marginTop: '2px'
+                  marginTop: '1px'
                 }}
               >
                 WILGODA • KURUNEGALA
@@ -179,13 +178,13 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Desktop Navigation Links */}
+          {/* Desktop Navigation Links (Re-sized font for better readability) */}
           <nav
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '26px',
-              fontSize: '14px',
+              gap: '24px',
+              fontSize: '14.5px', // Enhanced readability font size
               fontWeight: 500
             }}
             className="desktop-only"
@@ -193,22 +192,22 @@ export const Header: React.FC<HeaderProps> = ({
             {navLinks.map((link) => {
               const isActive = activeNav === link.id;
               return (
-                <a
+                <button
                   key={link.id}
-                  href={`#${link.id}`}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onNavClick(link.id);
-                  }}
+                  onClick={() => onNavClick(link.id)}
                   style={{
                     position: 'relative',
                     padding: '6px 0',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
                     color: isActive
                       ? (darkMode ? '#F5E9D3' : '#121212')
                       : (darkMode ? 'rgba(245,233,211,0.65)' : 'rgba(18,18,18,0.65)'),
-                    textDecoration: 'none',
                     fontWeight: isActive ? 700 : 500,
-                    transition: 'color 0.2s'
+                    fontSize: '14.5px',
+                    transition: 'color 0.2s',
+                    outline: 'none'
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = '#9A652F')}
                   onMouseLeave={(e) => (e.currentTarget.style.color = isActive ? (darkMode ? '#F5E9D3' : '#121212') : (darkMode ? 'rgba(245,233,211,0.65)' : 'rgba(18,18,18,0.65)'))}
@@ -227,46 +226,52 @@ export const Header: React.FC<HeaderProps> = ({
                       }}
                     />
                   )}
-                </a>
+                </button>
               );
             })}
           </nav>
 
-          {/* Header Action Tools (Search, Cart, DarkMode, WhatsApp) */}
+          {/* Header Action Tools (Global Search Modal Trigger, Theme, Cart) */}
+          {/* Note: 'Order on WhatsApp' removed in desktop view per user request */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {/* Live Search Input */}
-            <div
+            {/* Global Search Trigger Button */}
+            <button
+              onClick={onOpenSearch}
+              aria-label="Open global search"
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
+                gap: '10px',
                 height: '40px',
                 padding: '0 14px',
                 borderRadius: '999px',
                 backgroundColor: darkMode ? '#222222' : '#FFFFFF',
                 border: darkMode ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(18,18,18,0.1)',
                 boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
-                width: '210px',
-                transition: 'border 0.2s'
+                cursor: 'pointer',
+                color: darkMode ? '#F5E9D3' : '#121212',
+                transition: 'all 0.2s'
               }}
-              className="desktop-only"
+              className="hover-lift"
             >
-              <Search size={14} style={{ opacity: 0.45, color: darkMode ? '#FFF' : '#000' }} />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                placeholder="Search books, papers..."
+              <Search size={15} style={{ opacity: 0.5, color: '#B77B3D' }} />
+              <span style={{ fontSize: '13px', color: darkMode ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)', marginRight: '6px' }} className="desktop-only">
+                Search products...
+              </span>
+              <span
                 style={{
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  width: '100%',
-                  fontSize: '13px',
-                  color: darkMode ? '#F5E9D3' : '#121212'
+                  padding: '2px 6px',
+                  borderRadius: '6px',
+                  backgroundColor: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  color: darkMode ? '#FFF' : '#666'
                 }}
-              />
-            </div>
+                className="desktop-only"
+              >
+                ⌘K
+              </span>
+            </button>
 
             {/* Dark Mode Toggle */}
             <button
@@ -333,45 +338,6 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </button>
 
-            {/* WhatsApp Ordering Button */}
-            <a
-              href={siteConfig.socialMedia.whatsappChat}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                height: '40px',
-                padding: '0 18px',
-                borderRadius: '999px',
-                backgroundColor: '#121212',
-                color: '#FFFFFF',
-                fontSize: '13px',
-                fontWeight: 600,
-                textDecoration: 'none',
-                boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
-                transition: 'background-color 0.2s, transform 0.15s'
-              }}
-              className="desktop-only hover-lift"
-            >
-              <div
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  backgroundColor: '#25D366',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#FFFFFF'
-                }}
-              >
-                <MessageCircle size={12} />
-              </div>
-              Order on WhatsApp
-            </a>
-
             {/* Mobile Hamburger Toggle for Quick Links */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -404,7 +370,7 @@ export const Header: React.FC<HeaderProps> = ({
               borderTop: '1px solid rgba(0,0,0,0.08)'
             }}
           >
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               {navLinks.map((link) => (
                 <button
                   key={link.id}
@@ -428,27 +394,6 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
               ))}
             </div>
-            <a
-              href={siteConfig.socialMedia.whatsappChat}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'flex',
-                height: '44px',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                borderRadius: '999px',
-                backgroundColor: '#25D366',
-                color: '#FFFFFF',
-                fontWeight: 700,
-                textDecoration: 'none',
-                fontSize: '14px'
-              }}
-            >
-              <MessageCircle size={16} />
-              WhatsApp Direct Chat
-            </a>
           </div>
         )}
       </header>
