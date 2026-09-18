@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { LogOut, Book, MessageSquare, Trash2, Edit, Plus, Loader2 } from 'lucide-react';
-import { BookItem } from '../../types';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAdminStore } from '../../store/adminStore';
+import { BookForm } from '../admin/BookForm';
 
 export const AdminPage: React.FC = () => {
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
@@ -13,9 +16,7 @@ export const AdminPage: React.FC = () => {
   const [authLoading, setAuthLoading] = useState(false);
 
   const [activeTab, setActiveTab] = useState<'books' | 'enquiries'>('books');
-  const [books, setBooks] = useState<BookItem[]>([]);
-  const [enquiries, setEnquiries] = useState<any[]>([]);
-  const [dataLoading, setDataLoading] = useState(false);
+  const { openBookForm } = useAdminStore();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -32,23 +33,41 @@ export const AdminPage: React.FC = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (session) {
-      fetchData();
-    }
-  }, [session, activeTab]);
-
-  const fetchData = async () => {
-    setDataLoading(true);
-    if (activeTab === 'books') {
+  const { data: books, isLoading: booksLoading } = useQuery({
+    queryKey: ['adminBooks'],
+    queryFn: async () => {
       const { data, error } = await supabase.from('books').select('*').order('created_at', { ascending: false });
-      if (data) setBooks(data);
-    } else {
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!session && activeTab === 'books',
+  });
+
+  const { data: enquiries, isLoading: enquiriesLoading } = useQuery({
+    queryKey: ['adminEnquiries'],
+    queryFn: async () => {
       const { data, error } = await supabase.from('enquiries').select('*').order('created_at', { ascending: false });
-      if (data) setEnquiries(data);
-    }
-    setDataLoading(false);
-  };
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!session && activeTab === 'enquiries',
+  });
+
+  const deleteBookMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const { error } = await supabase.from('books').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['adminBooks'] })
+  });
+
+  const deleteEnquiryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('enquiries').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['adminEnquiries'] })
+  });
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,17 +82,15 @@ export const AdminPage: React.FC = () => {
     await supabase.auth.signOut();
   };
 
-  const handleDeleteBook = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this book?')) {
-      await supabase.from('books').delete().eq('id', id);
-      fetchData();
+  const handleDeleteBook = (id: number) => {
+    if (window.confirm('Are you sure you want to delete this book? This action cannot be undone.')) {
+      deleteBookMutation.mutate(id);
     }
   };
 
-  const handleDeleteEnquiry = async (id: string) => {
+  const handleDeleteEnquiry = (id: string) => {
     if (window.confirm('Are you sure you want to delete this enquiry?')) {
-      await supabase.from('enquiries').delete().eq('id', id);
-      fetchData();
+      deleteEnquiryMutation.mutate(id);
     }
   };
 
@@ -83,7 +100,7 @@ export const AdminPage: React.FC = () => {
 
   if (!session) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
+      <div className="flex min-h-screen items-center justify-center bg-gray-100 px-4 py-12 sm:px-6 lg:px-8">
         <div className="w-full max-w-md space-y-8 bg-white p-8 rounded-xl shadow-lg border border-gray-100">
           <div>
             <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">Admin Login</h2>
@@ -98,7 +115,7 @@ export const AdminPage: React.FC = () => {
                   required
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="relative block w-full rounded-t-md border-0 py-2.5 px-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                   placeholder="Email address"
                 />
               </div>
@@ -108,7 +125,7 @@ export const AdminPage: React.FC = () => {
                   required
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="relative block w-full rounded-b-md border-0 py-2.5 px-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                   placeholder="Password"
                 />
               </div>
@@ -117,7 +134,7 @@ export const AdminPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={authLoading}
-                className="group relative flex w-full justify-center rounded-md bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-70"
+                className="group relative flex w-full justify-center rounded-md bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-70"
               >
                 {authLoading ? 'Signing in...' : 'Sign in'}
               </button>
@@ -130,8 +147,10 @@ export const AdminPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+      <BookForm />
+      
       {/* Sidebar */}
-      <div className="w-full md:w-64 bg-white border-r border-gray-200 flex flex-col hidden md:flex min-h-screen sticky top-0">
+      <div className="w-full md:w-64 bg-white/90 backdrop-blur-sm border-r border-gray-200 flex flex-col hidden md:flex min-h-screen sticky top-0 rounded-tr-lg rounded-br-lg shadow-md">
         <div className="p-6 border-b border-gray-200">
           <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
           <p className="text-xs text-gray-500 truncate mt-1">{session.user.email}</p>
@@ -164,7 +183,10 @@ export const AdminPage: React.FC = () => {
             <div>
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Books Inventory</h2>
-                <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">
+                <button 
+                  onClick={() => openBookForm()}
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+                >
                   <Plus className="w-4 h-4" /> Add Book
                 </button>
               </div>
@@ -172,21 +194,29 @@ export const AdminPage: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200 text-left">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Grade/Cat</th>
-                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Image</th>
+                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Title</th>
+                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Grade/Cat</th>
+                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Price</th>
+                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Stock</th>
+                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {dataLoading ? (
-                      <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">Loading...</td></tr>
-                    ) : books.length === 0 ? (
-                      <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">No books found. Add one!</td></tr>
+                    {booksLoading ? (
+                      <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-500"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
+                    ) : !books || books.length === 0 ? (
+                      <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-500">No books found. Add one!</td></tr>
                     ) : (
-                      books.map(book => (
+                      books.map((book: any) => (
                         <tr key={book.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {book.image_url ? (
+                              <img src={book.image_url} alt={book.title} className="w-10 h-14 object-cover rounded shadow-sm" />
+                            ) : (
+                              <div className={`w-10 h-14 rounded shadow-sm flex items-center justify-center text-[8px] text-white font-bold ${book.color}`}>{book.accent}</div>
+                            )}
+                          </td>
                           <td className="px-6 py-4 text-sm font-medium text-gray-900">{book.title}</td>
                           <td className="px-6 py-4 text-sm text-gray-500">{book.grade} {book.category ? `(${book.category})` : ''}</td>
                           <td className="px-6 py-4 text-sm text-gray-900">Rs. {book.price}</td>
@@ -196,8 +226,12 @@ export const AdminPage: React.FC = () => {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-sm text-right font-medium">
-                            <button className="text-blue-600 hover:text-blue-900 mr-4" title="Edit"><Edit className="w-4 h-4 inline" /></button>
-                            <button onClick={() => handleDeleteBook(book.id)} className="text-red-600 hover:text-red-900" title="Delete"><Trash2 className="w-4 h-4 inline" /></button>
+                            <button onClick={() => openBookForm(book)} className="text-blue-600 hover:text-blue-900 mr-4" title="Edit">
+                              <Edit className="w-4 h-4 inline" />
+                            </button>
+                            <button disabled={deleteBookMutation.isPending} onClick={() => handleDeleteBook(book.id)} className="text-red-600 hover:text-red-900 disabled:opacity-50" title="Delete">
+                              <Trash2 className="w-4 h-4 inline" />
+                            </button>
                           </td>
                         </tr>
                       ))
@@ -215,20 +249,20 @@ export const AdminPage: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200 text-left">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Service</th>
-                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
-                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">Actions</th>
+                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Date</th>
+                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Customer</th>
+                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Service</th>
+                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Notes</th>
+                      <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {dataLoading ? (
-                      <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">Loading...</td></tr>
-                    ) : enquiries.length === 0 ? (
+                    {enquiriesLoading ? (
+                      <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500"><Loader2 className="w-5 h-5 animate-spin mx-auto" /></td></tr>
+                    ) : !enquiries || enquiries.length === 0 ? (
                       <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">No enquiries found.</td></tr>
                     ) : (
-                      enquiries.map(enq => (
+                      enquiries.map((enq: any) => (
                         <tr key={enq.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{new Date(enq.created_at).toLocaleDateString()}</td>
                           <td className="px-6 py-4 text-sm text-gray-900">
@@ -238,7 +272,9 @@ export const AdminPage: React.FC = () => {
                           <td className="px-6 py-4 text-sm text-gray-900">{enq.serviceType}</td>
                           <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate" title={enq.notes}>{enq.notes || '-'}</td>
                           <td className="px-6 py-4 text-sm text-right font-medium">
-                            <button onClick={() => handleDeleteEnquiry(enq.id)} className="text-red-600 hover:text-red-900" title="Delete"><Trash2 className="w-4 h-4 inline" /></button>
+                            <button disabled={deleteEnquiryMutation.isPending} onClick={() => handleDeleteEnquiry(enq.id)} className="text-red-600 hover:text-red-900 disabled:opacity-50" title="Delete">
+                              <Trash2 className="w-4 h-4 inline" />
+                            </button>
                           </td>
                         </tr>
                       ))

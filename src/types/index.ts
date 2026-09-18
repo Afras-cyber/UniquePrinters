@@ -30,6 +30,8 @@ export interface BookItem {
   accent: string;
   inStock?: boolean;
   category?: string;
+  image_url?: string;
+  description?: string;
 }
 
 export interface StationeryItem {

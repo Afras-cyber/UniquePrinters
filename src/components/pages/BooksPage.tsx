@@ -4,6 +4,9 @@ import { sampleBooks } from '../../data/sampleData';
 import { BookItem } from '../../types';
 import { siteConfig } from '../../config/siteConfig';
 
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '../../lib/supabase';
+
 interface BooksPageProps {
   onBack: () => void;
   onAddToCart: (item: { id: string; title: string; price: number; type: 'book' }) => void;
@@ -19,11 +22,20 @@ export const BooksPage: React.FC<BooksPageProps> = ({
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc'>('featured');
   const [addedIds, setAddedIds] = useState<{ [id: number]: boolean }>({});
 
+  const { data: books = [], isLoading } = useQuery({
+    queryKey: ['publicBooks'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('books').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as BookItem[];
+    }
+  });
+
   const grades = ['All', 'Grade 5', 'Grade 6', 'Grade 8', 'Grade 10', 'O/L', 'A/L'];
   const categories = ['All', 'Workbooks', 'Past Papers', 'Exam Packs', 'Language', 'Short Notes'];
 
   const filteredBooks = useMemo(() => {
-    let result = sampleBooks.filter((book) => {
+    let result = [...books].filter((book) => {
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         !q ||
@@ -45,7 +57,7 @@ export const BooksPage: React.FC<BooksPageProps> = ({
     }
 
     return result;
-  }, [searchQuery, selectedGrade, selectedCategory, sortBy]);
+  }, [searchQuery, selectedGrade, selectedCategory, sortBy, books]);
 
   const handleAdd = (book: BookItem) => {
     onAddToCart({
@@ -307,28 +319,43 @@ export const BooksPage: React.FC<BooksPageProps> = ({
                 className="hover-lift"
               >
                 {/* Book Spine / Cover preview */}
-                <div
-                  className={book.color}
-                  style={{
-                    width: '82px',
-                    height: '112px',
-                    borderRadius: '12px',
-                    padding: '10px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    flexShrink: 0,
-                    color: '#FFFFFF',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                  }}
-                >
-                  <span style={{ fontSize: '9px', letterSpacing: '0.12em', fontWeight: 800, opacity: 0.85 }}>
-                    {book.accent.toUpperCase()}
-                  </span>
-                  <span style={{ fontSize: '12px', lineHeight: 1.15, fontWeight: 800 }}>
-                    {book.grade}
-                  </span>
-                </div>
+                {book.image_url ? (
+                  <img 
+                    src={book.image_url} 
+                    alt={book.title}
+                    style={{
+                      width: '82px',
+                      height: '112px',
+                      borderRadius: '12px',
+                      objectFit: 'cover',
+                      flexShrink: 0,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                    }}
+                  />
+                ) : (
+                  <div
+                    className={book.color}
+                    style={{
+                      width: '82px',
+                      height: '112px',
+                      borderRadius: '12px',
+                      padding: '10px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      flexShrink: 0,
+                      color: '#FFFFFF',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                    }}
+                  >
+                    <span style={{ fontSize: '9px', letterSpacing: '0.12em', fontWeight: 800, opacity: 0.85 }}>
+                      {book.accent.toUpperCase()}
+                    </span>
+                    <span style={{ fontSize: '12px', lineHeight: 1.15, fontWeight: 800 }}>
+                      {book.grade}
+                    </span>
+                  </div>
+                )}
 
                 {/* Details & Actions */}
                 <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
