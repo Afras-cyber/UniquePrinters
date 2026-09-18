@@ -70,26 +70,26 @@ export const siteConfig: SiteConfig = {
   },
   contact: {
     ...rawConfig.contact,
-    phone: "+94 77 123 4567",
-    whatsapp: "+94 77 123 4567",
-    email: "unique.printers.wilgoda@gmail.com",
+    phone: "+94 76 383 6945",
+    whatsapp: "+94 76 383 6945",
+    email: "tmahfisn@gmail.com",
     address: {
-      line1: "Main Road, Wilgoda",
-      line2: "Near Wilgoda Junction",
-      city: "Kurunegala",
-      province: "North Western Province",
+      line1: "No 571 /2, MEEGAHAGODALLA, ",
+      line2: "THALDUWA,AVISSAWELL",
+      city: "Avissawella",
+      province: "Western Province",
       country: "Sri Lanka",
-      mapUrl: "https://maps.google.com/?q=Wilgoda+Kurunegala+Unique+Printers"
+      mapUrl: "https://maps.google.com/?q=MEEGAHAGODALLA,+THALDUWA,AVISSAWELL"
     },
     businessHours: {
-      monToFri: "8:00 AM - 8:00 PM",
-      saturday: "8:00 AM - 8:00 PM",
-      sunday: "8:00 AM - 1:00 PM"
+      monToFri: "8:00 AM - 10:00 PM",
+      saturday: "8:00 AM - 10:00 PM",
+      sunday: "8:00 AM - 10:00 PM"
     }
   },
   socialMedia: {
     ...rawConfig.socialMedia,
-    whatsappChat: "https://wa.me/94771234567",
+    whatsappChat: "https://wa.me/94763836945",
     whatsappMessage: "Hi Unique Printers, I would like to inquire about printing / stationery services."
   }
 } as SiteConfig;
