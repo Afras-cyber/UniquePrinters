@@ -14,11 +14,12 @@ import { HomePage } from './components/pages/HomePage';
 import { BooksPage } from './components/pages/BooksPage';
 import { DesignsPage } from './components/pages/DesignsPage';
 import { ServiceDetailPage } from './components/pages/ServiceDetailPage';
+import { AdminPage } from './components/pages/AdminPage';
 
 import { CartItem, DesignItem, BookItem } from './types';
 import { siteConfig } from './config/siteConfig';
 
-type Page = 'home' | 'books' | 'designs' | 'service';
+type Page = 'home' | 'books' | 'designs' | 'service' | 'admin';
 
 export const App: React.FC = () => {
   const [isMobile, setIsMobile] = useState<boolean>(false);
@@ -28,6 +29,20 @@ export const App: React.FC = () => {
 
   // Page routing state
   const [currentPage, setCurrentPage] = useState<Page>('home');
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === '#admin') {
+        setCurrentPage('admin');
+      } else if (window.location.hash === '') {
+        setCurrentPage('home');
+      }
+    };
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   const [selectedServiceId, setSelectedServiceId] = useState<string>('');
 
   // Modals
@@ -173,25 +188,27 @@ export const App: React.FC = () => {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Announcement notice if enabled in site.config.json */}
-      <AnnouncementBanner />
+      {currentPage !== 'admin' && <AnnouncementBanner />}
 
       {/* Header View: Exact Mobile Hero on mobile; Baseline Desktop Header on Desktop */}
-      {showMobileHeader ? (
-        <MobileHeaderHero
-          onOpenSearch={() => setSearchOpen(true)}
-          onToggleForceDesktop={() => setForceDesktop(true)}
-          isForcedDesktop={forceDesktop}
-        />
-      ) : (
-        <Header
-          cartCount={cartTotalCount}
-          onOpenCart={() => setCartOpen(true)}
-          onOpenSearch={() => setSearchOpen(true)}
-          darkMode={darkMode}
-          onToggleDarkMode={() => setDarkMode(!darkMode)}
-          activeNav={activeTab}
-          onNavClick={scrollToSection}
-        />
+      {currentPage !== 'admin' && (
+        showMobileHeader ? (
+          <MobileHeaderHero
+            onOpenSearch={() => setSearchOpen(true)}
+            onToggleForceDesktop={() => setForceDesktop(true)}
+            isForcedDesktop={forceDesktop}
+          />
+        ) : (
+          <Header
+            cartCount={cartTotalCount}
+            onOpenCart={() => setCartOpen(true)}
+            onOpenSearch={() => setSearchOpen(true)}
+            darkMode={darkMode}
+            onToggleDarkMode={() => setDarkMode(!darkMode)}
+            activeNav={activeTab}
+            onNavClick={scrollToSection}
+          />
+        )
       )}
 
       {/* Main Content Area */}
@@ -233,10 +250,14 @@ export const App: React.FC = () => {
             onAddToCart={handleAddToCart}
           />
         )}
+
+        {currentPage === 'admin' && (
+          <AdminPage />
+        )}
       </main>
 
       {/* Mobile Bottom Navigation (Preserved from Mobile UI PDF) */}
-      {showMobileHeader && (
+      {showMobileHeader && currentPage !== 'admin' && (
         <MobileBottomNav
           activeTab={activeTab}
           onTabChange={(tab) => {

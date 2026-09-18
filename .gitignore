@@ -5,3 +5,5 @@ docs
 icon
 Images
 
+.env
+.env.*
