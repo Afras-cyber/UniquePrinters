@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
-    "@supabase/supabase-js": "^2.49.1",
+    "@supabase/supabase-js": "^2.109.0",
     "@tanstack/react-query": "^5.103.1",
     "lucide-react": "^0.475.0",
     "react": "^18.3.1",
