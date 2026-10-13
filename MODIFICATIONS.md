@@ -200,6 +200,14 @@ Each service now has a full dedicated page (`ServiceDetailPage.tsx`):
    - Typed client initialized with environment variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`).
    - Graceful offline/development fallback so the site remains fully operational without remote database downtime.
 
+7. **Mobile Header UI/UX Revamp (`MobileHeaderHero.tsx`)**:
+   - Replaced wrapping top ticker with a sleek single-line status bar (`KURUNEGALA • TUE, 13 OCT`, live clock, and compact desktop toggle).
+   - Replaced oversized 3-line green block with a clean, dynamic status pill (`● OPEN · Closes 8 PM` / `○ CLOSED · Opens 8 AM`).
+   - Integrated Dark Mode toggle and real-time Shopping Cart counter directly into the mobile header.
+   - Refined search bar ergonomics with subtle background, search icon in brand gold, and voice mic trigger.
+   - Restyled dual CTAs (`Call Shop` and `WhatsApp`) to balanced 40px pills, saving vertical space.
+   - Added subtle trust value micro-strip (`⚡ Wilgoda Pickup • 📄 Free Quotations • ⭐ 10+ Yrs Trusted`).
+
 ---
 
 ## 8. Build & Verification Status

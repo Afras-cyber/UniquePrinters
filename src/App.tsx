@@ -262,6 +262,10 @@ export const App: React.FC = () => {
             onOpenSearch={() => setSearchOpen(true)}
             onToggleForceDesktop={() => setForceDesktop(true)}
             isForcedDesktop={forceDesktop}
+            cartCount={cartTotalCount}
+            onOpenCart={() => setCartOpen(true)}
+            darkMode={darkMode}
+            onToggleDarkMode={() => setDarkMode(!darkMode)}
           />
         ) : (
           <Header

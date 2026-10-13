@@ -70,8 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
               <Phone size={12} style={{ color: '#B77B3D' }} />
               {siteConfig.contact.phone}
             </a>
-            <span style={{ opacity: 0.3 }} className="desktop-only">|</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }} className="desktop-only">
               <Clock size={12} style={{ color: '#B77B3D' }} />
               Open 8AM - 8PM • 7 Days
             </span>
