@@ -12,14 +12,16 @@ import { WhatsAppFloat } from './components/ui/WhatsAppFloat';
 // Pages
 import { HomePage } from './components/pages/HomePage';
 import { BooksPage } from './components/pages/BooksPage';
+import { StationeryPage } from './components/pages/StationeryPage';
 import { DesignsPage } from './components/pages/DesignsPage';
 import { ServiceDetailPage } from './components/pages/ServiceDetailPage';
 import { AdminPage } from './components/pages/AdminPage';
 
 import { CartItem, DesignItem, BookItem } from './types';
 import { siteConfig } from './config/siteConfig';
+import { useShopStore } from './store/shopStore';
 
-type Page = 'home' | 'books' | 'designs' | 'service' | 'admin';
+type Page = 'home' | 'books' | 'stationery' | 'designs' | 'service' | 'admin';
 
 export const App: React.FC = () => {
   const [isMobile, setIsMobile] = useState<boolean>(false);
@@ -29,21 +31,7 @@ export const App: React.FC = () => {
 
   // Page routing state
   const [currentPage, setCurrentPage] = useState<Page>('home');
-
-  useEffect(() => {
-    const handleHashChange = () => {
-      if (window.location.hash === '#admin') {
-        setCurrentPage('admin');
-      } else if (window.location.hash === '') {
-        setCurrentPage('home');
-      }
-    };
-    handleHashChange();
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  const [selectedServiceId, setSelectedServiceId] = useState<string>('');
+  const [selectedServiceId, setSelectedServiceId] = useState<string>('reload');
 
   // Modals
   const [searchOpen, setSearchOpen] = useState<boolean>(false);
@@ -54,6 +42,66 @@ export const App: React.FC = () => {
     { id: 'book-1', title: 'Grade 6 Science Workbook', price: 850, quantity: 1, type: 'book' },
     { id: 'book-2', title: 'G.C.E O/L Mathematics Past Papers', price: 1200, quantity: 1, type: 'book' }
   ]);
+
+  // Handle URL hash changes (SEO-friendly routing engine)
+  useEffect(() => {
+    const parseHashRoute = () => {
+      const hash = window.location.hash || '';
+
+      if (hash.startsWith('#admin') || hash.startsWith('#/admin')) {
+        setCurrentPage('admin');
+        setActiveTab('admin');
+      } else if (hash.startsWith('#/services/')) {
+        const sId = hash.replace('#/services/', '').split('?')[0];
+        setSelectedServiceId(sId || 'reload');
+        setCurrentPage('service');
+        setActiveTab('services');
+      } else if (hash.startsWith('#/books') || hash.startsWith('#books') || hash.startsWith('#/bookshelf')) {
+        setCurrentPage('books');
+        setActiveTab('books');
+      } else if (hash.startsWith('#/stationery') || hash.startsWith('#stationery') || hash.startsWith('#/stationery-supplies')) {
+        setCurrentPage('stationery');
+        setActiveTab('stationery');
+      } else if (hash.startsWith('#/designs') || hash.startsWith('#designs')) {
+        setCurrentPage('designs');
+        setActiveTab('designs');
+
+        // Check for specific item preview URL parameter: #/designs?item=1
+        if (hash.includes('item=')) {
+          const params = new URLSearchParams(hash.split('?')[1]);
+          const itemId = params.get('item');
+          if (itemId) {
+            const allDesigns = useShopStore.getState().designs;
+            const match = allDesigns.find((d) => String(d.id) === itemId);
+            if (match) {
+              setSelectedDesign(match);
+            }
+          }
+        }
+      } else if (hash === '#offers' || hash === '#/offers') {
+        setCurrentPage('home');
+        setActiveTab('offers');
+        setTimeout(() => {
+          const el = document.getElementById('offers');
+          el?.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+      } else if (hash === '#services' || hash === '#/services') {
+        setCurrentPage('home');
+        setActiveTab('services');
+        setTimeout(() => {
+          const el = document.getElementById('services');
+          el?.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+      } else {
+        setCurrentPage('home');
+        setActiveTab('home');
+      }
+    };
+
+    parseHashRoute();
+    window.addEventListener('hashchange', parseHashRoute);
+    return () => window.removeEventListener('hashchange', parseHashRoute);
+  }, []);
 
   // Screen size detection
   useEffect(() => {
@@ -89,7 +137,7 @@ export const App: React.FC = () => {
   // Scroll to top on page navigation
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [currentPage]);
+  }, [currentPage, selectedServiceId]);
 
   const handleAddToCart = (item: { id: string; title: string; price: number; type: 'book' | 'product' | 'stationery' }) => {
     setCartItems((prev) => {
@@ -119,11 +167,44 @@ export const App: React.FC = () => {
     setCartItems((prev) => prev.filter((item) => item.id !== id));
   };
 
+  const handleNavigatePage = (page: string, param?: string) => {
+    if (page === 'home') {
+      window.location.hash = '#/';
+    } else if (page === 'books') {
+      window.location.hash = '#/books';
+    } else if (page === 'stationery') {
+      window.location.hash = '#/stationery';
+    } else if (page === 'designs') {
+      window.location.hash = param ? `#/designs?item=${param}` : '#/designs';
+    } else if (page === 'service') {
+      window.location.hash = `#/services/${param || 'reload'}`;
+    } else if (page === 'admin') {
+      window.location.hash = '#/admin';
+    }
+  };
+
   const scrollToSection = (id: string) => {
     setActiveTab(id);
+    if (id === 'books') {
+      handleNavigatePage('books');
+      return;
+    }
+    if (id === 'stationery') {
+      handleNavigatePage('stationery');
+      return;
+    }
+    if (id === 'designs') {
+      handleNavigatePage('designs');
+      return;
+    }
+    if (id === 'admin') {
+      handleNavigatePage('admin');
+      return;
+    }
+
     // If we're on a sub-page, navigate home first
     if (currentPage !== 'home') {
-      setCurrentPage('home');
+      window.location.hash = '#/';
       setTimeout(() => {
         if (id === 'home') {
           window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -139,10 +220,12 @@ export const App: React.FC = () => {
       }, 300);
       return;
     }
+
     if (id === 'home') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+
     const el = document.getElementById(id);
     if (el) {
       const offset = 80;
@@ -152,34 +235,16 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleNavigatePage = (page: string) => {
-    if (page === 'home') {
-      setCurrentPage('home');
-      setActiveTab('home');
-    } else if (page === 'books') {
-      setCurrentPage('books');
-      setActiveTab('books');
-    } else if (page === 'designs') {
-      setCurrentPage('designs');
-      setActiveTab('designs');
-    }
-  };
-
   const handleSelectService = (serviceId: string) => {
-    setSelectedServiceId(serviceId);
-    setCurrentPage('service');
-    setActiveTab('services');
+    handleNavigatePage('service', serviceId);
   };
 
   const handleSelectDesign = (design: DesignItem) => {
     setSelectedDesign(design);
-    // Optionally also navigate to designs page
   };
 
-  const handleSelectBook = (book: BookItem) => {
-    // Navigate to books page and the search will highlight it
-    setCurrentPage('books');
-    setActiveTab('books');
+  const handleSelectBook = (_book: BookItem) => {
+    handleNavigatePage('books');
   };
 
   const showMobileHeader = isMobile && !forceDesktop;
@@ -190,7 +255,7 @@ export const App: React.FC = () => {
       {/* Announcement notice if enabled in site.config.json */}
       {currentPage !== 'admin' && <AnnouncementBanner />}
 
-      {/* Header View: Exact Mobile Hero on mobile; Baseline Desktop Header on Desktop */}
+      {/* Header View: Mobile Header Hero on mobile; Sticky Navigation on Desktop */}
       {currentPage !== 'admin' && (
         showMobileHeader ? (
           <MobileHeaderHero
@@ -213,7 +278,7 @@ export const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className={showMobileHeader ? 'mobile-bottom-space' : ''} style={{ flex: 1 }}>
-        {/* ── Page Router ── */}
+        {/* ── Page Router with separate URLs ── */}
         {currentPage === 'home' && (
           <>
             <HomePage
@@ -230,14 +295,21 @@ export const App: React.FC = () => {
 
         {currentPage === 'books' && (
           <BooksPage
-            onBack={() => setCurrentPage('home')}
+            onBack={() => handleNavigatePage('home')}
+            onAddToCart={handleAddToCart}
+          />
+        )}
+
+        {currentPage === 'stationery' && (
+          <StationeryPage
+            onBack={() => handleNavigatePage('home')}
             onAddToCart={handleAddToCart}
           />
         )}
 
         {currentPage === 'designs' && (
           <DesignsPage
-            onBack={() => setCurrentPage('home')}
+            onBack={() => handleNavigatePage('home')}
             onSelectDesign={handleSelectDesign}
           />
         )}
@@ -245,7 +317,7 @@ export const App: React.FC = () => {
         {currentPage === 'service' && (
           <ServiceDetailPage
             serviceId={selectedServiceId}
-            onBack={() => setCurrentPage('home')}
+            onBack={() => handleNavigatePage('home')}
             onNavigatePage={handleNavigatePage}
             onAddToCart={handleAddToCart}
           />
@@ -256,7 +328,7 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* Mobile Bottom Navigation (Preserved from Mobile UI PDF) */}
+      {/* Mobile Bottom Navigation */}
       {showMobileHeader && currentPage !== 'admin' && (
         <MobileBottomNav
           activeTab={activeTab}
@@ -265,6 +337,8 @@ export const App: React.FC = () => {
               handleNavigatePage('designs');
             } else if (tab === 'books') {
               handleNavigatePage('books');
+            } else if (tab === 'stationery') {
+              handleNavigatePage('stationery');
             } else {
               scrollToSection(tab);
             }
@@ -272,7 +346,7 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Global Search Modal (Ctrl+K or search icon click) */}
+      {/* Global Search Modal */}
       <GlobalSearchModal
         isOpen={searchOpen}
         onClose={() => setSearchOpen(false)}
@@ -288,7 +362,7 @@ export const App: React.FC = () => {
         onAddToCart={handleAddToCart}
       />
 
-      {/* Lightbox Modal for Design Preview */}
+      {/* Lightbox Modal for Design Preview with direct WhatsApp quote */}
       <ImageModal
         design={selectedDesign}
         onClose={() => setSelectedDesign(null)}

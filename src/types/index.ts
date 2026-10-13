@@ -6,11 +6,14 @@ export interface ServiceItem {
   chips: string[];
   type: 'service' | 'product';
   whatsappMessage?: string;
+  slug?: string;
+  badge?: string;
+  active?: boolean;
 }
 
 export interface DesignItem {
   id: number;
-  cat: 'Invitations' | 'Posters' | 'Banners' | 'Business Cards' | 'Certificates';
+  cat: string;
   title: string;
   subtitle: string;
   image?: string;
@@ -18,6 +21,10 @@ export interface DesignItem {
   tag?: string;
   paperSpec?: string;
   priceNote?: string;
+  price?: number;
+  discountPercent?: number;
+  originalPrice?: number;
+  inStock?: boolean;
 }
 
 export interface BookItem {
@@ -26,6 +33,7 @@ export interface BookItem {
   grade: string;
   price: number;
   old?: number | null;
+  discountPercent?: number;
   color: string;
   accent: string;
   inStock?: boolean;
@@ -35,22 +43,35 @@ export interface BookItem {
 }
 
 export interface StationeryItem {
+  id: string | number;
   name: string;
-  count: string;
+  category: string;
+  price: number;
+  oldPrice?: number | null;
+  discountPercent?: number;
+  count?: string;
   icon?: string;
-  category?: string;
+  image?: string;
+  description?: string;
+  inStock: boolean;
 }
 
 export interface OfferItem {
   id: number;
   title: string;
   price: number;
-  badge?: string;
   old?: number;
+  badge?: string;
   off?: string;
   image?: string;
   icon?: string;
   tag?: string;
+  isActive: boolean;
+  discountPercent?: number;
+  promoCode?: string;
+  description?: string;
+  validUntil?: string;
+  category?: string;
 }
 
 export interface CartItem {
@@ -59,4 +80,15 @@ export interface CartItem {
   price: number;
   quantity: number;
   type: 'book' | 'product' | 'stationery';
+  image?: string;
+}
+
+export interface CustomerEnquiry {
+  id: string;
+  name: string;
+  phone: string;
+  serviceType: string;
+  notes: string;
+  created_at?: string;
+  status?: 'pending' | 'contacted' | 'completed';
 }

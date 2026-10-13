@@ -218,12 +218,12 @@ export const sampleBooks: BookItem[] = [
 ];
 
 export const stationeryList: StationeryItem[] = [
-  { name: 'CR Books & Drawing Books (80 - 400 Pgs)', count: '120+ types' },
-  { name: 'Ballpoint, Gel & Permanent Pens (Atlas, Deli, Pilot)', count: 'A-Z Brands' },
-  { name: 'Art & Craft Supplies (Water colours, Clay, Pastels)', count: 'Full Range' },
-  { name: 'Files, Box Files, Sleeves & Envelopes', count: 'All Sizes' },
-  { name: 'School Bags, Water Bottles & Lunch Boxes', count: 'Latest Stock' },
-  { name: 'Geometry Boxes, Protractors & Casio Scientific Calculators', count: 'Genuine' }
+  { id: 'sample-stat-1', name: 'CR Books & Drawing Books (80 - 400 Pgs)', category: 'CR Books & Notebooks', count: '120+ types', price: 180, inStock: true },
+  { id: 'sample-stat-2', name: 'Ballpoint, Gel & Permanent Pens (Atlas, Deli, Pilot)', category: 'Pens & Writing', count: 'A-Z Brands', price: 350, inStock: true },
+  { id: 'sample-stat-3', name: 'Art & Craft Supplies (Water colours, Clay, Pastels)', category: 'Art & Craft', count: 'Full Range', price: 650, inStock: true },
+  { id: 'sample-stat-4', name: 'Files, Box Files, Sleeves & Envelopes', category: 'Office & Filing', count: 'All Sizes', price: 750, inStock: true },
+  { id: 'sample-stat-5', name: 'School Bags, Water Bottles & Lunch Boxes', category: 'School Bags & Accessories', count: 'Latest Stock', price: 2400, inStock: true },
+  { id: 'sample-stat-6', name: 'Geometry Boxes, Protractors & Casio Scientific Calculators', category: 'Geometry & Math', count: 'Genuine', price: 1450, inStock: true }
 ];
 
 export const newArrivals: OfferItem[] = [
@@ -232,28 +232,32 @@ export const newArrivals: OfferItem[] = [
     title: 'Deli Metal Compass & Geometry Box',
     price: 1250,
     badge: 'NEW',
-    icon: '📐'
+    icon: '📐',
+    isActive: true
   },
   {
     id: 2,
     title: 'A4 Premium Colour Printing Paper 80gsm (Pack of 100)',
     price: 450,
     badge: 'NEW',
-    icon: '📄'
+    icon: '📄',
+    isActive: true
   },
   {
     id: 3,
     title: 'Pastel Aesthetic Highlighters (6 Pcs Set)',
     price: 890,
     badge: 'NEW',
-    icon: '🖍️'
+    icon: '🖍️',
+    isActive: true
   },
   {
     id: 4,
     title: 'Hard Cover Premium CR 200 Pages (Checked & Ruled)',
     price: 580,
     badge: 'RESTOCK',
-    icon: '📓'
+    icon: '📓',
+    isActive: true
   }
 ];
 
@@ -264,7 +268,8 @@ export const saleBundles: OfferItem[] = [
     price: 3250,
     old: 4200,
     off: '22% OFF',
-    icon: '🎒'
+    icon: '🎒',
+    isActive: true
   },
   {
     id: 2,
@@ -272,7 +277,8 @@ export const saleBundles: OfferItem[] = [
     price: 2850,
     old: 3500,
     off: '18% OFF',
-    icon: '✏️'
+    icon: '✏️',
+    isActive: true
   },
   {
     id: 3,
@@ -280,6 +286,7 @@ export const saleBundles: OfferItem[] = [
     price: 5100,
     old: 6500,
     off: '21% OFF',
-    icon: '📦'
+    icon: '📦',
+    isActive: true
   }
 ];

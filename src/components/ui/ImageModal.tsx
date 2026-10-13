@@ -2,6 +2,7 @@ import React from 'react';
 import { X, MessageCircle, Sparkles } from 'lucide-react';
 import { DesignItem } from '../../types';
 import { siteConfig } from '../../config/siteConfig';
+import { buildProductWhatsAppUrl } from '../../lib/whatsapp';
 
 interface ImageModalProps {
   design: DesignItem | null;
@@ -11,9 +12,13 @@ interface ImageModalProps {
 export const ImageModal: React.FC<ImageModalProps> = ({ design, onClose }) => {
   if (!design) return null;
 
-  const whatsappInquireUrl = `${siteConfig.socialMedia.whatsappChat}?text=${encodeURIComponent(
-    `Hi Unique Printers, I'm interested in ordering / customizing this design: "${design.title}" (${design.cat}). Could you please share options and quotation?`
-  )}`;
+  const whatsappInquireUrl = buildProductWhatsAppUrl({
+    productName: `${design.title} (${design.cat})`,
+    category: design.cat,
+    price: design.price,
+    productPath: `#/designs?item=${design.id}`,
+    customNote: design.paperSpec ? `Material: ${design.paperSpec}` : undefined
+  });
 
   return (
     <div

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { DesktopHero } from '../sections/DesktopHero';
 import { ServicesSection } from '../sections/ServicesSection';
 import { DesignsPortfolio } from '../sections/DesignsPortfolio';
@@ -7,13 +7,15 @@ import { StationerySection } from '../sections/StationerySection';
 import { OffersSection } from '../sections/OffersSection';
 import { StatsBar } from '../sections/StatsBar';
 import { DesignItem } from '../../types';
+import { updateSEO } from '../../lib/seo';
+import { siteConfig } from '../../config/siteConfig';
 
 interface HomePageProps {
   showDesktopHero: boolean;
   onSelectService: (serviceId: string) => void;
   onSelectDesign: (design: DesignItem) => void;
   onNavigatePage: (page: string) => void;
-  onAddToCart: (item: { id: string; title: string; price: number; type: 'book' | 'product' }) => void;
+  onAddToCart: (item: { id: string; title: string; price: number; type: 'book' | 'product' | 'stationery' }) => void;
   searchQuery: string;
 }
 
@@ -25,6 +27,14 @@ export const HomePage: React.FC<HomePageProps> = ({
   onAddToCart,
   searchQuery
 }) => {
+  useEffect(() => {
+    updateSEO({
+      title: 'Unique Printers & Stationery | Printing, Books & Mobile Reload Wilgoda Kurunegala',
+      description: 'Your premier shop for custom wedding invitation printing, school textbooks, past papers, A-Z stationery supplies, instant mobile reloads, and photocopy services in Wilgoda, Kurunegala.',
+      path: '#/'
+    });
+  }, []);
+
   return (
     <>
       {/* Desktop Hero Section */}
@@ -44,9 +54,12 @@ export const HomePage: React.FC<HomePageProps> = ({
       <ServicesSection onSelectService={onSelectService} />
 
       {/* 2. Sample Designs & Printing Portfolio */}
-      <DesignsPortfolio onSelectDesign={onSelectDesign} />
+      <DesignsPortfolio
+        onSelectDesign={onSelectDesign}
+        onViewAllDesigns={() => onNavigatePage('designs')}
+      />
 
-      {/* 3. Books & Stationery Showcase Grid */}
+      {/* 3. Books & Stationery Showcase Grid with View More Navigation */}
       <section
         id="books-stationery"
         style={{
@@ -65,8 +78,11 @@ export const HomePage: React.FC<HomePageProps> = ({
           <BooksSection
             searchQuery={searchQuery}
             onAddToCart={onAddToCart}
+            onViewMore={() => onNavigatePage('books')}
           />
-          <StationerySection />
+          <StationerySection
+            onViewMore={() => onNavigatePage('stationery')}
+          />
         </div>
       </section>
 

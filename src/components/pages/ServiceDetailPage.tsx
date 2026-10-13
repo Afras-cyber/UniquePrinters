@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ArrowLeft, MessageCircle, Clock, CheckCircle, Sparkles, Phone, ExternalLink } from 'lucide-react';
 import { serviceDetailsData } from '../../data/serviceDetailsData';
 import { sampleBooks } from '../../data/sampleData';
 import { siteConfig } from '../../config/siteConfig';
+import { updateSEO } from '../../lib/seo';
+import { buildProductWhatsAppUrl } from '../../lib/whatsapp';
 
 interface ServiceDetailPageProps {
   serviceId: string;
@@ -19,9 +21,31 @@ export const ServiceDetailPage: React.FC<ServiceDetailPageProps> = ({
 }) => {
   const service = serviceDetailsData[serviceId] || serviceDetailsData.reload;
 
-  const whatsappInquireUrl = `${siteConfig.socialMedia.whatsappChat}?text=${encodeURIComponent(
-    service.whatsappMessage || `Hi Unique Printers, I'm inquiring about ${service.title}`
-  )}`;
+  useEffect(() => {
+    updateSEO({
+      title: `${service.title} Service`,
+      description: service.shortDesc,
+      path: `#/services/${service.id}`,
+      jsonLd: {
+        '@context': 'https://schema.org',
+        '@type': 'Service',
+        name: service.title,
+        description: service.shortDesc,
+        provider: {
+          '@type': 'LocalBusiness',
+          name: siteConfig.shop.name,
+          telephone: siteConfig.contact.phone
+        }
+      }
+    });
+  }, [service]);
+
+  const whatsappInquireUrl = buildProductWhatsAppUrl({
+    productName: service.title,
+    category: 'Shop Service',
+    productPath: `#/services/${service.id}`,
+    customNote: service.whatsappMessage
+  });
 
   return (
     <div style={{ minHeight: '80vh', backgroundColor: '#FFFBF5', paddingBottom: '60px' }}>

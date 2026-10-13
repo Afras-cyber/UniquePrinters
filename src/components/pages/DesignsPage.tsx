@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { ArrowLeft, MessageCircle, Eye, Sparkles, Filter, Check } from 'lucide-react';
-import { sampleDesigns } from '../../data/sampleData';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, MessageCircle, Eye, Sparkles, Filter, Check, ArrowRight } from 'lucide-react';
+import { useShopStore } from '../../store/shopStore';
 import { DesignItem } from '../../types';
+import { buildProductWhatsAppUrl } from '../../lib/whatsapp';
+import { updateSEO } from '../../lib/seo';
 import { siteConfig } from '../../config/siteConfig';
 
 interface DesignsPageProps {
@@ -13,27 +15,35 @@ export const DesignsPage: React.FC<DesignsPageProps> = ({
   onBack,
   onSelectDesign
 }) => {
+  const { designs, designCategories } = useShopStore();
   const [activeCategory, setActiveCategory] = useState<string>('All');
 
-  const categories = [
-    'All',
-    'Invitations',
-    'Posters',
-    'Banners',
-    'Business Cards',
-    'Certificates'
-  ];
+  useEffect(() => {
+    updateSEO({
+      title: 'Sample Design & Printing Works Portfolio',
+      description: 'Explore custom wedding invitations, birthday posters, flex banners, business cards, and certificates designed & printed by Unique Printers in Wilgoda Kurunegala.',
+      path: '#/designs',
+      jsonLd: {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        name: 'Sample Designs & Printing Works - Unique Printers',
+        description: 'Portfolio of custom wedding cards, business cards, posters and banners printed in Kurunegala.'
+      }
+    });
+  }, []);
+
+  const categories = ['All', ...designCategories];
 
   const filteredDesigns = activeCategory === 'All'
-    ? sampleDesigns
-    : sampleDesigns.filter((d) => d.cat === activeCategory);
+    ? designs
+    : designs.filter((d) => d.cat === activeCategory);
 
   const customInviteUrl = `${siteConfig.socialMedia.whatsappChat}?text=${encodeURIComponent(
-    'Hi Unique Printers, I would like to request a custom invitation style! I have reference photos and details to share.'
+    'Hello Unique Printers team! 👋 I would like to request a custom invitation / banner design quotation. I have reference photos and details to discuss. Could you please advise?'
   )}`;
 
   return (
-    <div style={{ minHeight: '80vh', backgroundColor: '#FFFBF5', paddingBottom: '60px' }}>
+    <div style={{ minHeight: '85vh', backgroundColor: '#FFFBF5', paddingBottom: '70px' }}>
       {/* Header Bar */}
       <div style={{ backgroundColor: '#121212', color: '#FFFFFF', padding: '12px 16px' }}>
         <div
@@ -64,142 +74,104 @@ export const DesignsPage: React.FC<DesignsPageProps> = ({
           </button>
 
           <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
-            Gallery / <span style={{ color: '#F5D6A8' }}>Design & Printing Works</span>
+            Gallery / <span style={{ color: '#F5D6A8' }}>Sample Designs & Printing</span>
           </div>
         </div>
       </div>
 
-      {/* Hero Header */}
+      {/* Hero Banner */}
       <div
         style={{
-          backgroundColor: '#121212',
+          background: 'linear-gradient(135deg, #2D1A0E 0%, #1A0F08 50%, #121212 100%)',
           color: '#FFFFFF',
-          padding: '50px 16px',
-          borderBottom: '1px solid rgba(255,255,255,0.1)'
+          padding: '48px 16px 54px 16px',
+          position: 'relative',
+          overflow: 'hidden'
         }}
       >
-        <div className="site-container">
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '4px 12px',
-              borderRadius: '999px',
-              backgroundColor: 'rgba(183, 123, 61, 0.2)',
-              border: '1px solid rgba(183, 123, 61, 0.4)',
-              color: '#F5D6A8',
-              fontSize: '11px',
-              fontWeight: 800,
-              letterSpacing: '0.08em',
-              marginBottom: '14px'
-            }}
-          >
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: 'radial-gradient(600px 300px at 80% 20%, rgba(183,123,61,0.3), transparent)',
+            pointerEvents: 'none'
+          }}
+        />
+
+        <div className="site-container" style={{ position: 'relative', zIndex: 2 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.14)', fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', color: '#F5D6A8' }}>
             <Sparkles size={12} />
-            PRINTING PORTFOLIO & INVITATIONS
-          </span>
+            REAL WORK SAMPLES • WILGODA SHOP
+          </div>
 
           <h1
             className="serif"
             style={{
-              fontSize: 'clamp(32px, 4.5vw, 50px)',
-              lineHeight: 1.05,
-              fontWeight: 400,
-              margin: '0 0 14px 0'
+              fontSize: 'clamp(28px, 4.5vw, 44px)',
+              lineHeight: 1.1,
+              marginTop: '14px',
+              color: '#FFFFFF',
+              fontWeight: 400
             }}
           >
             Sample Designs & Printing Works
           </h1>
 
-          <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.7)', maxWidth: '640px', lineHeight: 1.6, margin: 0 }}>
-            Explore our crafted wedding invitations, Waleema cards, birthday posters, event banners, and executive business cards. Tap any design to view details or message our shop on WhatsApp with your favorite style.
-          </p>
-        </div>
-      </div>
-
-      {/* Custom Style Banner */}
-      <div className="site-container" style={{ marginTop: '24px' }}>
-        <div
-          style={{
-            borderRadius: '20px',
-            backgroundColor: '#FFFFFF',
-            border: '1px solid rgba(183, 123, 61, 0.3)',
-            padding: '20px 24px',
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '16px',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.04)'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '50%',
-                backgroundColor: '#FFFBF5',
-                border: '1px solid rgba(183,123,61,0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '22px'
-              }}
-            >
-              💌
-            </div>
-            <div>
-              <div style={{ fontSize: '15px', fontWeight: 800, color: '#121212' }}>
-                Need a Custom Invitation Style?
-              </div>
-              <div style={{ fontSize: '13px', color: '#666666', marginTop: '2px' }}>
-                Send us your own photo, Pinterest concept, or theme ideas on WhatsApp!
-              </div>
-            </div>
-          </div>
-
-          <a
-            href={customInviteUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <p
             style={{
-              height: '42px',
-              padding: '0 20px',
-              borderRadius: '999px',
-              backgroundColor: '#25D366',
-              color: '#FFFFFF',
-              fontWeight: 700,
-              fontSize: '13.5px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              textDecoration: 'none',
-              boxShadow: '0 4px 14px rgba(37,211,102,0.3)'
+              marginTop: '12px',
+              fontSize: '14.5px',
+              lineHeight: 1.6,
+              color: 'rgba(255,255,255,0.75)',
+              maxWidth: '680px'
             }}
-            className="hover-lift"
           >
-            <MessageCircle size={17} />
-            Request Custom Invitation Style
-          </a>
+            Every sample below was custom-designed and printed right here at Unique Printers Wilgoda. 
+            Choose any design as a starting point, or bring your own idea and reference images to WhatsApp.
+          </p>
+
+          <div style={{ marginTop: '22px', display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+            <a
+              href={customInviteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                height: '42px',
+                padding: '0 20px',
+                borderRadius: '999px',
+                backgroundColor: '#B77B3D',
+                color: '#FFFFFF',
+                fontSize: '13.5px',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                textDecoration: 'none'
+              }}
+              className="hover-lift"
+            >
+              <MessageCircle size={16} />
+              Request Custom Design on WhatsApp
+            </a>
+          </div>
         </div>
       </div>
 
-      {/* Filter Tabs & Gallery */}
-      <div className="site-container" style={{ marginTop: '30px' }}>
+      {/* Category Pills & Gallery */}
+      <div className="site-container" style={{ marginTop: '32px' }}>
         {/* Category Pills */}
         <div
           style={{
             display: 'flex',
-            flexWrap: 'wrap',
+            alignItems: 'center',
             gap: '8px',
-            paddingBottom: '16px',
-            borderBottom: '1px solid rgba(0,0,0,0.08)',
+            overflowX: 'auto',
+            paddingBottom: '8px',
             marginBottom: '24px'
           }}
         >
           {categories.map((cat) => {
-            const isActive = activeCategory === cat;
+            const isSelected = activeCategory === cat;
             return (
               <button
                 key={cat}
@@ -210,11 +182,13 @@ export const DesignsPage: React.FC<DesignsPageProps> = ({
                   borderRadius: '999px',
                   fontSize: '13.5px',
                   fontWeight: 600,
-                  border: isActive ? '1px solid #121212' : '1px solid rgba(0,0,0,0.1)',
-                  backgroundColor: isActive ? '#121212' : '#FFFFFF',
-                  color: isActive ? '#FFFFFF' : '#121212',
+                  border: isSelected ? '1px solid #121212' : '1px solid rgba(0,0,0,0.1)',
+                  backgroundColor: isSelected ? '#121212' : '#FFFFFF',
+                  color: isSelected ? '#FFFFFF' : '#121212',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  whiteSpace: 'nowrap',
+                  boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.12)' : 'none'
                 }}
               >
                 {cat}
@@ -223,200 +197,192 @@ export const DesignsPage: React.FC<DesignsPageProps> = ({
           })}
         </div>
 
-        {/* Gallery Grid */}
+        {/* Designs Count */}
+        <div style={{ fontSize: '13.5px', color: 'rgba(0,0,0,0.6)', marginBottom: '20px' }}>
+          Showing <b>{filteredDesigns.length}</b> printed samples {activeCategory !== 'All' ? `under ${activeCategory}` : ''}
+        </div>
+
+        {/* Grid */}
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: '20px'
+            gap: '24px'
           }}
         >
-          {filteredDesigns.map((item) => {
-            const itemWhatsAppUrl = `${siteConfig.socialMedia.whatsappChat}?text=${encodeURIComponent(
-              `Hi Unique Printers, I need this style invitation: "${item.title}" (${item.cat}). Can you please share pricing and quantity options?`
-            )}`;
+          {filteredDesigns.map((design) => {
+            const waQuoteUrl = buildProductWhatsAppUrl({
+              productName: `${design.title} (${design.cat})`,
+              category: design.cat,
+              price: design.price,
+              productPath: `#/designs?item=${design.id}`,
+              customNote: design.paperSpec ? `Paper / Finishing: ${design.paperSpec}` : undefined
+            });
 
             return (
               <div
-                key={item.id}
+                key={design.id}
                 style={{
                   borderRadius: '20px',
-                  overflow: 'hidden',
-                  border: '1px solid rgba(0, 0, 0, 0.09)',
                   backgroundColor: '#FFFFFF',
-                  boxShadow: '0 6px 24px rgba(0,0,0,0.05)',
+                  border: '1px solid rgba(0,0,0,0.08)',
+                  overflow: 'hidden',
                   display: 'flex',
                   flexDirection: 'column',
-                  transition: 'all 0.2s ease'
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
+                  transition: 'transform 0.2s, box-shadow 0.2s'
                 }}
                 className="hover-lift"
               >
-                {/* Image / Gradient Container */}
+                {/* Image Frame */}
                 <div
-                  onClick={() => onSelectDesign(item)}
+                  onClick={() => onSelectDesign(design)}
                   style={{
-                    height: '230px',
+                    height: '240px',
                     position: 'relative',
                     cursor: 'pointer',
-                    backgroundColor: '#1E1E1E',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    backgroundColor: '#1E1E1E'
                   }}
                 >
-                  {item.image ? (
+                  {design.image ? (
                     <img
-                      src={item.image}
-                      alt={item.title}
+                      src={design.image}
+                      alt={design.title}
                       style={{
                         width: '100%',
                         height: '100%',
                         objectFit: 'cover',
-                        transition: 'transform 0.4s ease'
+                        transition: 'transform 0.3s ease'
                       }}
-                      loading="lazy"
+                      className="hover-scale"
                     />
                   ) : (
                     <div
                       style={{
                         width: '100%',
                         height: '100%',
-                        background: item.grad
-                          ? `linear-gradient(135deg, #B77B3D, #121212)`
-                          : 'linear-gradient(135deg, #FF8A3D, #FFE9C6)',
-                        padding: '20px',
+                        background: 'linear-gradient(135deg, #B77B3D, #3A2510)',
                         display: 'flex',
-                        flexDirection: 'column',
+                        alignItems: 'center',
                         justifyContent: 'center',
-                        alignItems: 'center'
+                        color: '#FFFFFF',
+                        fontSize: '36px'
                       }}
                     >
-                      <div className="serif" style={{ fontSize: '26px', color: '#FFFFFF', textAlign: 'center' }}>
-                        {item.title}
-                      </div>
+                      🎨
                     </div>
                   )}
 
-                  {item.tag && (
-                    <span
-                      style={{
-                        position: 'absolute',
-                        top: '12px',
-                        left: '12px',
-                        padding: '4px 10px',
-                        borderRadius: '999px',
-                        backgroundColor: 'rgba(255,255,255,0.92)',
-                        color: '#121212',
-                        fontSize: '10px',
-                        fontWeight: 800,
-                        letterSpacing: '0.04em',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
-                      }}
-                    >
-                      {item.tag}
-                    </span>
-                  )}
-
-                  {/* Eye preview hint button */}
                   <div
                     style={{
                       position: 'absolute',
                       top: '12px',
+                      left: '12px',
                       right: '12px',
-                      width: '34px',
-                      height: '34px',
-                      borderRadius: '50%',
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      backdropFilter: 'blur(6px)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#FFFFFF'
-                    }}
-                  >
-                    <Eye size={16} />
-                  </div>
-                </div>
-
-                {/* Card Info & WhatsApp Action */}
-                <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ fontSize: '11px', fontWeight: 800, color: '#B77B3D', letterSpacing: '0.06em' }}>
-                      {item.cat.toUpperCase()}
-                    </div>
-                    <h3
-                      style={{
-                        fontSize: '15px',
-                        fontWeight: 800,
-                        color: '#121212',
-                        lineHeight: 1.3,
-                        marginTop: '4px'
-                      }}
-                      className="line-clamp-1"
-                    >
-                      {item.title}
-                    </h3>
-                    <div style={{ fontSize: '12.5px', color: '#666666', marginTop: '2px' }} className="line-clamp-1">
-                      {item.subtitle}
-                    </div>
-                    <div style={{ fontSize: '11.5px', color: '#888888', marginTop: '6px' }}>
-                      Paper: <span style={{ fontWeight: 600, color: '#333333' }}>{item.paperSpec || '300gsm'}</span>
-                    </div>
-                  </div>
-
-                  {/* Action Row */}
-                  <div
-                    style={{
-                      marginTop: '16px',
-                      paddingTop: '12px',
-                      borderTop: '1px solid rgba(0,0,0,0.06)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      gap: '8px'
+                      pointerEvents: 'none'
                     }}
                   >
-                    <button
-                      onClick={() => onSelectDesign(item)}
+                    <span
                       style={{
-                        height: '32px',
-                        padding: '0 12px',
+                        padding: '4px 10px',
                         borderRadius: '999px',
-                        backgroundColor: '#FFFBF5',
-                        border: '1px solid rgba(0,0,0,0.1)',
-                        color: '#121212',
-                        fontSize: '11.5px',
-                        fontWeight: 600,
-                        cursor: 'pointer'
+                        backgroundColor: 'rgba(18,18,18,0.75)',
+                        backdropFilter: 'blur(8px)',
+                        color: '#FFFFFF',
+                        fontSize: '10.5px',
+                        fontWeight: 700
                       }}
                     >
-                      Preview
+                      {design.cat}
+                    </span>
+                    {design.tag && (
+                      <span
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: '999px',
+                          backgroundColor: '#B77B3D',
+                          color: '#FFFFFF',
+                          fontSize: '10.5px',
+                          fontWeight: 800
+                        }}
+                      >
+                        {design.tag}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Content */}
+                <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
+                  <div>
+                    <h3 style={{ fontSize: '17px', fontWeight: 800, color: '#121212', margin: 0, lineHeight: 1.3 }}>
+                      {design.title}
+                    </h3>
+                    <p style={{ fontSize: '13px', color: 'rgba(0,0,0,0.6)', marginTop: '6px', lineHeight: 1.45 }}>
+                      {design.subtitle}
+                    </p>
+
+                    {design.paperSpec && (
+                      <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#9A652F', fontWeight: 600 }}>
+                        <span>📜</span>
+                        <span>{design.paperSpec}</span>
+                      </div>
+                    )}
+
+                    {design.priceNote && (
+                      <div style={{ marginTop: '4px', fontSize: '11.5px', color: 'rgba(0,0,0,0.5)' }}>
+                        {design.priceNote}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ marginTop: '18px', paddingTop: '14px', borderTop: '1px solid rgba(0,0,0,0.06)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <button
+                      onClick={() => onSelectDesign(design)}
+                      style={{
+                        height: '38px',
+                        borderRadius: '999px',
+                        backgroundColor: '#121212',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <Eye size={14} />
+                      Full Preview
                     </button>
 
-                    {/* Direct WhatsApp button with pre-filled message */}
                     <a
-                      href={itemWhatsAppUrl}
+                      href={waQuoteUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      title="I need this style invitation"
                       style={{
-                        height: '32px',
-                        padding: '0 14px',
+                        height: '38px',
                         borderRadius: '999px',
                         backgroundColor: '#25D366',
                         color: '#FFFFFF',
-                        fontSize: '11.5px',
+                        fontSize: '12px',
                         fontWeight: 700,
                         display: 'inline-flex',
                         alignItems: 'center',
+                        justifyContent: 'center',
                         gap: '6px',
                         textDecoration: 'none'
                       }}
                       className="hover-lift"
                     >
                       <MessageCircle size={14} />
-                      I Need This Style
+                      Get Quote
                     </a>
                   </div>
                 </div>

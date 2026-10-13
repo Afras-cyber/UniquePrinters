@@ -1,1123 +1,2156 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from '../../lib/supabase';
+import React, { useState } from 'react';
 import { 
   LogOut, 
   BookOpen, 
-  MessageSquare, 
   Trash2, 
   Edit3, 
   Plus, 
-  Loader2, 
   Search, 
-  Filter, 
   ArrowLeft, 
-  Mail, 
-  Lock, 
-  Eye, 
-  EyeOff, 
   ExternalLink, 
-  Grid, 
-  List, 
-  Phone, 
-  MessageCircle, 
-  ShoppingBag, 
-  TrendingUp, 
-  Menu, 
-  X, 
-  RefreshCw, 
-  ShieldCheck, 
-  AlertCircle,
-  PackageCheck,
-  CheckCircle2
+  Sparkles, 
+  Percent, 
+  ToggleLeft, 
+  ToggleRight,
+  FolderPlus,
+  MessageCircle
 } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAdminStore } from '../../store/adminStore';
-import { BookForm } from '../admin/BookForm';
-import { BookItem } from '../../types';
+import { useShopStore } from '../../store/shopStore';
+import { BookItem, DesignItem, StationeryItem, OfferItem } from '../../types';
 
 export const AdminPage: React.FC = () => {
-  const queryClient = useQueryClient();
-  const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  
-  // Auth Form State
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [authError, setAuthError] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
+  const {
+    books, addBook, updateBook, deleteBook,
+    designs, addDesign, updateDesign, deleteDesign, designCategories, addDesignCategory, updateDesignCategory, deleteDesignCategory,
+    stationeryItems, addStationery, updateStationery, deleteStationery, stationeryCategories,
+    offers, addOffer, updateOffer, toggleOfferActive, deleteOffer,
+    enquiries, updateEnquiryStatus, deleteEnquiry
+  } = useShopStore();
 
-  // Admin Dashboard State
-  const [activeTab, setActiveTab] = useState<'books' | 'enquiries'>('books');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [bookViewMode, setBookViewMode] = useState<'table' | 'grid'>('table');
+  // Navigation Tab State
+  type AdminTab = 'overview' | 'books' | 'designs' | 'stationery' | 'offers' | 'enquiries';
+  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+
+  // Search State
   const [searchQuery, setSearchQuery] = useState('');
-  const [stockFilter, setStockFilter] = useState<'all' | 'inStock' | 'outOfStock'>('all');
-  const [selectedGrade, setSelectedGrade] = useState<string>('all');
-  const [deleteConfirmId, setDeleteConfirmId] = useState<{ id: string | number; type: 'book' | 'enquiry' } | null>(null);
 
-  const { openBookForm } = useAdminStore();
+  // Modals State
+  const [bookModalOpen, setBookModalOpen] = useState(false);
+  const [editingBook, setEditingBook] = useState<BookItem | null>(null);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
+  const [designModalOpen, setDesignModalOpen] = useState(false);
+  const [editingDesign, setEditingDesign] = useState<DesignItem | null>(null);
+
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [editingCategoryOldName, setEditingCategoryOldName] = useState<string | null>(null);
+
+  const [stationeryModalOpen, setStationeryModalOpen] = useState(false);
+  const [editingStationery, setEditingStationery] = useState<StationeryItem | null>(null);
+
+  const [offerModalOpen, setOfferModalOpen] = useState(false);
+  const [editingOffer, setEditingOffer] = useState<OfferItem | null>(null);
+
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 2500);
+  };
+
+  // ----------------------------------------------------
+  // BOOK FORM STATE
+  // ----------------------------------------------------
+  const [bookForm, setBookForm] = useState({
+    title: '',
+    grade: 'Grade 10',
+    category: 'Workbooks',
+    originalPrice: 1000,
+    discountPercent: 0,
+    accent: 'General',
+    color: 'bg-blue-600',
+    inStock: true,
+    description: ''
+  });
+
+  const openAddBookModal = () => {
+    setEditingBook(null);
+    setBookForm({
+      title: '',
+      grade: 'Grade 10',
+      category: 'Workbooks',
+      originalPrice: 1000,
+      discountPercent: 0,
+      accent: 'General',
+      color: 'bg-blue-600',
+      inStock: true,
+      description: ''
     });
+    setBookModalOpen(true);
+  };
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+  const openEditBookModal = (book: BookItem) => {
+    setEditingBook(book);
+    const orig = book.old || book.price;
+    const disc = book.discountPercent || (book.old && book.old > book.price ? Math.round(((book.old - book.price) / book.old) * 100) : 0);
+    setBookForm({
+      title: book.title,
+      grade: book.grade,
+      category: book.category || 'Workbooks',
+      originalPrice: orig,
+      discountPercent: disc,
+      accent: book.accent,
+      color: book.color || 'bg-blue-600',
+      inStock: book.inStock !== false,
+      description: book.description || ''
     });
+    setBookModalOpen(true);
+  };
 
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Fetch Books
-  const { 
-    data: books, 
-    isLoading: booksLoading, 
-    isFetching: booksFetching, 
-    refetch: refetchBooks 
-  } = useQuery({
-    queryKey: ['adminBooks'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('books').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
-      return (data || []) as BookItem[];
-    },
-    enabled: !!session,
-  });
-
-  // Fetch Enquiries
-  const { 
-    data: enquiries, 
-    isLoading: enquiriesLoading, 
-    isFetching: enquiriesFetching, 
-    refetch: refetchEnquiries 
-  } = useQuery({
-    queryKey: ['adminEnquiries'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('enquiries').select('*').order('created_at', { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!session,
-  });
-
-  // Delete Mutations
-  const deleteBookMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const { error } = await supabase.from('books').delete().eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminBooks'] });
-      setDeleteConfirmId(null);
-    }
-  });
-
-  const deleteEnquiryMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('enquiries').delete().eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['adminEnquiries'] });
-      setDeleteConfirmId(null);
-    }
-  });
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSaveBook = (e: React.FormEvent) => {
     e.preventDefault();
-    setAuthLoading(true);
-    setAuthError('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setAuthError(error.message);
-    setAuthLoading(false);
-  };
+    if (!bookForm.title.trim()) return;
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
+    const discount = Number(bookForm.discountPercent) || 0;
+    const orig = Number(bookForm.originalPrice) || 0;
+    const finalPrice = discount > 0 ? Math.round(orig * (1 - discount / 100)) : orig;
 
-  // Navigating back to store
-  const handleReturnToStore = () => {
-    window.location.hash = '';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // KPI Calculations
-  const stats = useMemo(() => {
-    const totalBooks = books?.length || 0;
-    const inStockBooks = books?.filter(b => b.inStock !== false).length || 0;
-    const outOfStockBooks = totalBooks - inStockBooks;
-    const catalogValue = books?.reduce((acc, b) => acc + (Number(b.price) || 0), 0) || 0;
-    const totalEnquiries = enquiries?.length || 0;
-    return {
-      totalBooks,
-      inStockBooks,
-      outOfStockBooks,
-      catalogValue,
-      totalEnquiries
+    const payload = {
+      title: bookForm.title,
+      grade: bookForm.grade,
+      category: bookForm.category,
+      price: finalPrice,
+      old: discount > 0 ? orig : null,
+      discountPercent: discount,
+      accent: bookForm.accent,
+      color: bookForm.color,
+      inStock: bookForm.inStock,
+      description: bookForm.description
     };
-  }, [books, enquiries]);
 
-  // Unique Grades for filtering
-  const availableGrades = useMemo(() => {
-    if (!books) return [];
-    const set = new Set<string>();
-    books.forEach(b => {
-      if (b.grade) set.add(b.grade.trim());
+    if (editingBook) {
+      updateBook(editingBook.id, payload);
+      showToast('✅ Book updated successfully!');
+    } else {
+      addBook(payload);
+      showToast('✅ Book added to catalog!');
+    }
+    setBookModalOpen(false);
+  };
+
+  // ----------------------------------------------------
+  // DESIGN FORM STATE
+  // ----------------------------------------------------
+  const [designForm, setDesignForm] = useState({
+    title: '',
+    subtitle: '',
+    cat: 'Invitations',
+    tag: 'Popular',
+    paperSpec: '300gsm Textured Pearl Card',
+    priceNote: 'Starting from Rs. 150 / card',
+    image: '',
+    price: 150,
+    originalPrice: 180,
+    discountPercent: 15,
+    inStock: true
+  });
+
+  const openAddDesignModal = () => {
+    setEditingDesign(null);
+    setDesignForm({
+      title: '',
+      subtitle: 'Custom typography & elegant finish',
+      cat: designCategories[0] || 'Invitations',
+      tag: 'New',
+      paperSpec: '300gsm Pearl Card',
+      priceNote: 'Starting from Rs. 150',
+      image: '',
+      price: 150,
+      originalPrice: 180,
+      discountPercent: 15,
+      inStock: true
     });
-    return Array.from(set);
-  }, [books]);
+    setDesignModalOpen(true);
+  };
 
-  // Filtered Books
-  const filteredBooks = useMemo(() => {
-    if (!books) return [];
-    return books.filter(book => {
-      const matchesSearch = 
-        book.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        book.grade?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        book.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        book.description?.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesStock = 
-        stockFilter === 'all' ? true :
-        stockFilter === 'inStock' ? book.inStock !== false :
-        book.inStock === false;
-
-      const matchesGrade = 
-        selectedGrade === 'all' ? true :
-        book.grade?.trim().toLowerCase() === selectedGrade.toLowerCase();
-
-      return matchesSearch && matchesStock && matchesGrade;
+  const openEditDesignModal = (design: DesignItem) => {
+    setEditingDesign(design);
+    setDesignForm({
+      title: design.title,
+      subtitle: design.subtitle,
+      cat: design.cat,
+      tag: design.tag || '',
+      paperSpec: design.paperSpec || '',
+      priceNote: design.priceNote || '',
+      image: design.image || '',
+      price: design.price || 150,
+      originalPrice: design.originalPrice || 180,
+      discountPercent: design.discountPercent || 0,
+      inStock: design.inStock !== false
     });
-  }, [books, searchQuery, stockFilter, selectedGrade]);
+    setDesignModalOpen(true);
+  };
 
-  // Filtered Enquiries
-  const filteredEnquiries = useMemo(() => {
-    if (!enquiries) return [];
-    return enquiries.filter((enq: any) => {
-      const q = searchQuery.toLowerCase();
-      return (
-        enq.name?.toLowerCase().includes(q) ||
-        enq.phone?.toLowerCase().includes(q) ||
-        enq.serviceType?.toLowerCase().includes(q) ||
-        enq.notes?.toLowerCase().includes(q)
-      );
+  const handleSaveDesign = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!designForm.title.trim()) return;
+
+    const discount = Number(designForm.discountPercent) || 0;
+    const orig = Number(designForm.originalPrice) || 0;
+    const finalPrice = discount > 0 ? Math.round(orig * (1 - discount / 100)) : (Number(designForm.price) || 150);
+
+    const payload = {
+      title: designForm.title,
+      subtitle: designForm.subtitle,
+      cat: designForm.cat,
+      tag: designForm.tag,
+      paperSpec: designForm.paperSpec,
+      priceNote: designForm.priceNote,
+      image: designForm.image || undefined,
+      price: finalPrice,
+      originalPrice: orig,
+      discountPercent: discount,
+      inStock: designForm.inStock
+    };
+
+    if (editingDesign) {
+      updateDesign(editingDesign.id, payload);
+      showToast('✅ Sample design updated!');
+    } else {
+      addDesign(payload);
+      showToast('✅ New design sample published!');
+    }
+    setDesignModalOpen(false);
+  };
+
+  // ----------------------------------------------------
+  // STATIONERY FORM STATE
+  // ----------------------------------------------------
+  const [stationeryForm, setStationeryForm] = useState({
+    name: '',
+    category: 'CR Books & Notebooks',
+    originalPrice: 300,
+    discountPercent: 10,
+    count: 'In Stock',
+    icon: '✏️',
+    description: '',
+    inStock: true
+  });
+
+  const openAddStationeryModal = () => {
+    setEditingStationery(null);
+    setStationeryForm({
+      name: '',
+      category: stationeryCategories[0] || 'CR Books & Notebooks',
+      originalPrice: 300,
+      discountPercent: 10,
+      count: 'In Stock',
+      icon: '✏️',
+      description: '',
+      inStock: true
     });
-  }, [enquiries, searchQuery]);
+    setStationeryModalOpen(true);
+  };
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0d1117] text-white">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center animate-pulse">
-              <BookOpen className="w-8 h-8 text-amber-400" />
-            </div>
-            <Loader2 className="w-6 h-6 animate-spin text-amber-500 absolute -top-1 -right-1" />
-          </div>
-          <p className="text-sm font-medium text-gray-400 tracking-wide">Loading Unique Printers Console...</p>
-        </div>
-      </div>
-    );
-  }
+  const openEditStationeryModal = (item: StationeryItem) => {
+    setEditingStationery(item);
+    const orig = item.oldPrice || item.price || 0;
+    setStationeryForm({
+      name: item.name,
+      category: item.category || 'CR Books & Notebooks',
+      originalPrice: orig,
+      discountPercent: item.discountPercent || 0,
+      count: item.count || 'In Stock',
+      icon: item.icon || '✏️',
+      description: item.description || '',
+      inStock: item.inStock !== false
+    });
+    setStationeryModalOpen(true);
+  };
 
-  // ─────────────────────────────────────────────────────────────
-  // 1. ADMIN LOGIN VIEW
-  // ─────────────────────────────────────────────────────────────
-  if (!session) {
-    return (
-      <div className="relative min-h-screen flex items-center justify-center bg-[#0b0f19] text-gray-100 p-4 overflow-hidden selection:bg-amber-500/30 selection:text-amber-200">
-        {/* Ambient background glows */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-gradient-to-tr from-amber-600/15 via-orange-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+  const handleSaveStationery = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stationeryForm.name.trim()) return;
 
-        {/* Back to store navigation */}
-        <button
-          onClick={handleReturnToStore}
-          className="absolute top-6 left-6 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 text-xs font-semibold backdrop-blur-md transition-all group"
-        >
-          <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1 text-amber-400" />
-          <span>Back to Store</span>
-        </button>
+    const discount = Number(stationeryForm.discountPercent) || 0;
+    const orig = Number(stationeryForm.originalPrice) || 0;
+    const finalPrice = discount > 0 ? Math.round(orig * (1 - discount / 100)) : orig;
 
-        <div className="relative w-full max-w-md">
-          {/* Card Container */}
-          <div className="relative rounded-3xl bg-[#141b2d]/80 backdrop-blur-2xl border border-white/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7)] p-8 sm:p-10">
-            {/* Header / Brand Mark */}
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white shadow-lg shadow-amber-500/25 mb-4 border border-amber-400/30">
-                <BookOpen className="w-8 h-8" />
-              </div>
-              <div className="inline-block px-3 py-1 mb-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] font-semibold tracking-wider uppercase">
-                Staff Administration
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                Unique Printers
-              </h1>
-              <p className="text-xs text-gray-400 mt-1.5">
-                Sign in to manage books inventory, customer orders & requests
-              </p>
-            </div>
+    const payload = {
+      name: stationeryForm.name,
+      category: stationeryForm.category,
+      price: finalPrice,
+      oldPrice: discount > 0 ? orig : null,
+      discountPercent: discount,
+      count: stationeryForm.count,
+      icon: stationeryForm.icon,
+      description: stationeryForm.description,
+      inStock: stationeryForm.inStock
+    };
 
-            {/* Error Message */}
-            {authError && (
-              <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-3">
-                <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="font-semibold text-rose-200">Authentication Failed</p>
-                  <p className="mt-0.5 text-rose-300/90">{authError}</p>
-                </div>
-              </div>
-            )}
+    if (editingStationery && editingStationery.id) {
+      updateStationery(editingStationery.id, payload);
+      showToast('✅ Stationery item updated!');
+    } else {
+      addStationery(payload);
+      showToast('✅ Stationery item added to stock!');
+    }
+    setStationeryModalOpen(false);
+  };
 
-            {/* Form */}
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-                  Admin Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@uniqueprinters.lk"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-black/30 border border-white/10 text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-amber-500/70 focus:ring-2 focus:ring-amber-500/20 transition-all"
-                  />
-                </div>
-              </div>
+  // ----------------------------------------------------
+  // OFFER FORM STATE
+  // ----------------------------------------------------
+  const [offerForm, setOfferForm] = useState({
+    title: '',
+    category: 'Discount Bundle',
+    originalPrice: 3000,
+    discountPercent: 20,
+    badge: '20% OFF',
+    promoCode: 'SCHOOL20',
+    description: '',
+    isActive: true,
+    icon: '🎁'
+  });
 
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-semibold text-gray-300">
-                    Password
-                  </label>
-                </div>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full pl-10 pr-11 py-3 rounded-xl bg-black/30 border border-white/10 text-white text-sm placeholder:text-gray-600 focus:outline-none focus:border-amber-500/70 focus:ring-2 focus:ring-amber-500/20 transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors p-1"
-                    title={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
+  const openAddOfferModal = () => {
+    setEditingOffer(null);
+    setOfferForm({
+      title: '',
+      category: 'Discount Bundle',
+      originalPrice: 3000,
+      discountPercent: 20,
+      badge: '20% OFF',
+      promoCode: 'SCHOOL20',
+      description: 'Special back-to-school discount package with guaranteed savings.',
+      isActive: true,
+      icon: '🎁'
+    });
+    setOfferModalOpen(true);
+  };
 
-              <button
-                type="submit"
-                disabled={authLoading}
-                className="w-full mt-2 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 hover:from-amber-500 hover:to-amber-500 text-white font-bold text-sm shadow-lg shadow-amber-600/30 hover:shadow-amber-600/50 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {authLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Signing in securely...</span>
-                  </>
-                ) : (
-                  <>
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Authenticate & Access Dashboard</span>
-                  </>
-                )}
-              </button>
-            </form>
+  const openEditOfferModal = (offer: OfferItem) => {
+    setEditingOffer(offer);
+    const orig = offer.old || offer.price;
+    setOfferForm({
+      title: offer.title,
+      category: offer.category || 'Discount Bundle',
+      originalPrice: orig,
+      discountPercent: offer.discountPercent || 0,
+      badge: offer.badge || offer.off || 'SPECIAL DEAL',
+      promoCode: offer.promoCode || '',
+      description: offer.description || '',
+      isActive: offer.isActive !== false,
+      icon: offer.icon || '🎁'
+    });
+    setOfferModalOpen(true);
+  };
 
-            {/* Footer notice */}
-            <div className="mt-8 pt-6 border-t border-white/10 text-center">
-              <p className="text-[11px] text-gray-500 flex items-center justify-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Protected Enterprise Access • Avissawella, Sri Lanka</span>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleSaveOffer = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!offerForm.title.trim()) return;
 
-  // ─────────────────────────────────────────────────────────────
-  // 2. AUTHENTICATED ADMIN DASHBOARD VIEW
-  // ─────────────────────────────────────────────────────────────
+    const discount = Number(offerForm.discountPercent) || 0;
+    const orig = Number(offerForm.originalPrice) || 0;
+    const finalPrice = discount > 0 ? Math.round(orig * (1 - discount / 100)) : orig;
+
+    const payload = {
+      title: offerForm.title,
+      category: offerForm.category,
+      price: finalPrice,
+      old: discount > 0 ? orig : undefined,
+      discountPercent: discount,
+      badge: offerForm.badge,
+      off: discount > 0 ? `${discount}% OFF` : undefined,
+      promoCode: offerForm.promoCode,
+      description: offerForm.description,
+      isActive: offerForm.isActive,
+      icon: offerForm.icon
+    };
+
+    if (editingOffer) {
+      updateOffer(editingOffer.id, payload);
+      showToast('✅ Promotional offer updated!');
+    } else {
+      addOffer(payload);
+      showToast('✅ New promotional offer created!');
+    }
+    setOfferModalOpen(false);
+  };
+
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0c101c] text-gray-900 dark:text-gray-100 flex flex-col selection:bg-amber-500/30 selection:text-amber-700">
-      <BookForm />
+    <div style={{ minHeight: '100vh', backgroundColor: '#F8F9FA', color: '#1A1A1A' }}>
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            backgroundColor: '#121212',
+            color: '#FFFFFF',
+            padding: '12px 24px',
+            borderRadius: '999px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+            zIndex: 9999,
+            fontSize: '14px',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <Sparkles size={16} style={{ color: '#B77B3D' }} />
+          <span>{toastMessage}</span>
+        </div>
+      )}
 
-      {/* Confirmation Modal for Delete */}
-      {deleteConfirmId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-[#192033] rounded-2xl p-6 max-w-sm w-full border border-gray-100 dark:border-gray-800 shadow-2xl animate-fade-in">
-            <div className="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center mb-4">
-              <Trash2 className="w-6 h-6" />
+      {/* Admin Navbar */}
+      <header
+        style={{
+          backgroundColor: '#121212',
+          color: '#FFFFFF',
+          padding: '0 24px',
+          height: '68px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid rgba(255,255,255,0.1)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <a
+            href="#/"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: 'rgba(255,255,255,0.7)',
+              textDecoration: 'none',
+              fontSize: '13px',
+              fontWeight: 600
+            }}
+          >
+            <ArrowLeft size={16} />
+            <span>Storefront</span>
+          </a>
+          <span style={{ color: 'rgba(255,255,255,0.2)' }}>|</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                backgroundColor: '#B77B3D',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#FFFFFF',
+                fontWeight: 800,
+                fontSize: '14px'
+              }}
+            >
+              UP
             </div>
-            <h3 className="text-base font-bold text-gray-900 dark:text-white">
-              Confirm Permanent Delete
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              Are you sure you want to remove this {deleteConfirmId.type}? This action cannot be reversed.
-            </p>
-            <div className="flex items-center justify-end gap-2 mt-6">
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '15px', letterSpacing: '-0.01em' }}>
+                Unique Printers CRM
+              </div>
+              <div style={{ fontSize: '10px', color: '#F5D6A8', fontWeight: 600 }}>
+                ADMIN DASHBOARD • WILGODA
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span
+            style={{
+              padding: '4px 12px',
+              borderRadius: '999px',
+              backgroundColor: 'rgba(16,185,129,0.15)',
+              color: '#10B981',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }} />
+            Connected & Live
+          </span>
+
+          <a
+            href="#/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '999px',
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              color: '#FFFFFF',
+              fontSize: '12.5px',
+              fontWeight: 600,
+              textDecoration: 'none'
+            }}
+          >
+            <span>Preview Site</span>
+            <ExternalLink size={13} />
+          </a>
+        </div>
+      </header>
+
+      {/* Main CRM Layout */}
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px 20px' }}>
+        {/* Navigation Tabs */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            overflowX: 'auto',
+            paddingBottom: '12px',
+            marginBottom: '24px',
+            borderBottom: '1px solid #E5E7EB'
+          }}
+        >
+          {[
+            { id: 'overview', label: '📊 Dashboard Overview', count: null },
+            { id: 'books', label: '📚 School Books', count: books.length },
+            { id: 'designs', label: '🎨 Sample Designs & Works', count: designs.length },
+            { id: 'stationery', label: '✏️ Stationery Items', count: stationeryItems.length },
+            { id: 'offers', label: '🏷️ Offers & Promos', count: offers.length },
+            { id: 'enquiries', label: '💬 Customer Quotes', count: enquiries.length }
+          ].map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
               <button
-                onClick={() => setDeleteConfirmId(null)}
-                className="px-4 py-2 text-xs font-semibold rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200"
-              >
-                Cancel
-              </button>
-              <button
+                key={tab.id}
                 onClick={() => {
-                  if (deleteConfirmId.type === 'book') {
-                    deleteBookMutation.mutate(deleteConfirmId.id as number);
-                  } else {
-                    deleteEnquiryMutation.mutate(deleteConfirmId.id as string);
-                  }
+                  setActiveTab(tab.id as AdminTab);
+                  setSearchQuery('');
                 }}
-                disabled={deleteBookMutation.isPending || deleteEnquiryMutation.isPending}
-                className="px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1.5 shadow-md shadow-rose-600/20"
+                style={{
+                  height: '42px',
+                  padding: '0 18px',
+                  borderRadius: '12px',
+                  backgroundColor: isActive ? '#121212' : '#FFFFFF',
+                  color: isActive ? '#FFFFFF' : '#4B5563',
+                  border: isActive ? '1px solid #121212' : '1px solid #E5E7EB',
+                  fontSize: '13.5px',
+                  fontWeight: isActive ? 700 : 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  whiteSpace: 'nowrap',
+                  boxShadow: isActive ? '0 4px 12px rgba(0,0,0,0.1)' : '0 1px 3px rgba(0,0,0,0.02)',
+                  transition: 'all 0.15s ease'
+                }}
               >
-                {(deleteBookMutation.isPending || deleteEnquiryMutation.isPending) && (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>{tab.label}</span>
+                {tab.count !== null && (
+                  <span
+                    style={{
+                      padding: '2px 7px',
+                      borderRadius: '999px',
+                      backgroundColor: isActive ? '#B77B3D' : '#F3F4F6',
+                      color: isActive ? '#FFFFFF' : '#6B7280',
+                      fontSize: '11px',
+                      fontWeight: 700
+                    }}
+                  >
+                    {tab.count}
+                  </span>
                 )}
-                <span>Delete Permanently</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* --------------------------------------------------------- */}
+        {/* TAB 1: OVERVIEW */}
+        {/* --------------------------------------------------------- */}
+        {activeTab === 'overview' && (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+              {[
+                { title: 'School Books in Stock', value: books.length, icon: '📚', color: '#3B82F6', tab: 'books' },
+                { title: 'Sample Designs Portfolio', value: designs.length, icon: '🎨', color: '#B77B3D', tab: 'designs' },
+                { title: 'Design Categories', value: designCategories.length, icon: '🏷️', color: '#10B981', tab: 'designs' },
+                { title: 'Stationery Catalog Items', value: stationeryItems.length, icon: '✏️', color: '#8B5CF6', tab: 'stationery' },
+                { title: 'Active Promotional Offers', value: offers.filter(o => o.isActive !== false).length, icon: '🎁', color: '#EC4899', tab: 'offers' },
+                { title: 'Customer Inquiries', value: enquiries.length, icon: '💬', color: '#F59E0B', tab: 'enquiries' }
+              ].map((stat, i) => (
+                <div
+                  key={i}
+                  onClick={() => setActiveTab(stat.tab as AdminTab)}
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: '16px',
+                    border: '1px solid #E5E7EB',
+                    padding: '20px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                    cursor: 'pointer',
+                    transition: 'transform 0.15s, box-shadow 0.15s'
+                  }}
+                  className="hover-lift"
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '26px' }}>{stat.icon}</span>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#B77B3D' }}>Manage →</span>
+                  </div>
+                  <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '12px', color: '#121212' }}>
+                    {stat.value}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#6B7280', fontWeight: 500, marginTop: '2px' }}>
+                    {stat.title}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick Actions Panel */}
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: '20px',
+                border: '1px solid #E5E7EB',
+                padding: '24px',
+                marginBottom: '32px'
+              }}
+            >
+              <h3 style={{ fontSize: '18px', fontWeight: 800, margin: 0, marginBottom: '16px' }}>
+                🚀 Instant Quick Actions
+              </h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                <button
+                  onClick={openAddBookModal}
+                  style={{
+                    height: '44px',
+                    padding: '0 20px',
+                    borderRadius: '12px',
+                    backgroundColor: '#121212',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <Plus size={16} />
+                  Add School Book
+                </button>
+
+                <button
+                  onClick={openAddDesignModal}
+                  style={{
+                    height: '44px',
+                    padding: '0 20px',
+                    borderRadius: '12px',
+                    backgroundColor: '#B77B3D',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <Plus size={16} />
+                  Add Sample Design
+                </button>
+
+                <button
+                  onClick={openAddStationeryModal}
+                  style={{
+                    height: '44px',
+                    padding: '0 20px',
+                    borderRadius: '12px',
+                    backgroundColor: '#1E3A5F',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <Plus size={16} />
+                  Add Stationery Product
+                </button>
+
+                <button
+                  onClick={openAddOfferModal}
+                  style={{
+                    height: '44px',
+                    padding: '0 20px',
+                    borderRadius: '12px',
+                    backgroundColor: '#0F766E',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <Plus size={16} />
+                  Create Promotional Offer
+                </button>
+
+                <button
+                  onClick={() => {
+                    setEditingCategoryOldName(null);
+                    setNewCategoryName('');
+                    setCategoryModalOpen(true);
+                  }}
+                  style={{
+                    height: '44px',
+                    padding: '0 20px',
+                    borderRadius: '12px',
+                    backgroundColor: '#F3F4F6',
+                    color: '#121212',
+                    border: '1px solid #D1D5DB',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <FolderPlus size={16} />
+                  Manage Design Categories
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --------------------------------------------------------- */}
+        {/* TAB 2: SCHOOL BOOKS */}
+        {/* --------------------------------------------------------- */}
+        {activeTab === 'books' && (
+          <div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ fontSize: '22px', fontWeight: 800, margin: 0 }}>School Books Management</h2>
+                <p style={{ fontSize: '13px', color: '#6B7280', margin: 0, marginTop: '2px' }}>
+                  Manage textbooks, syllabus past papers, percentage discounts and stock status.
+                </p>
+              </div>
+              <button
+                onClick={openAddBookModal}
+                style={{
+                  height: '42px',
+                  padding: '0 20px',
+                  borderRadius: '10px',
+                  backgroundColor: '#121212',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontSize: '13.5px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <Plus size={16} />
+                Add Book
               </button>
             </div>
+
+            {/* Books Search Bar */}
+            <div style={{ backgroundColor: '#FFFFFF', padding: '16px', borderRadius: '14px', border: '1px solid #E5E7EB', display: 'flex', gap: '12px', marginBottom: '20px' }}>
+              <Search size={18} style={{ color: '#9CA3AF', alignSelf: 'center' }} />
+              <input
+                type="text"
+                placeholder="Search books by title, grade or category..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{ border: 'none', outline: 'none', width: '100%', fontSize: '14px' }}
+              />
+            </div>
+
+            {/* Books Table */}
+            <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', border: '1px solid #E5E7EB', overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13.5px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB', color: '#6B7280', fontWeight: 600 }}>
+                    <th style={{ padding: '14px 16px' }}>Book Title</th>
+                    <th style={{ padding: '14px 16px' }}>Grade</th>
+                    <th style={{ padding: '14px 16px' }}>Category</th>
+                    <th style={{ padding: '14px 16px' }}>Original Price</th>
+                    <th style={{ padding: '14px 16px' }}>Discount %</th>
+                    <th style={{ padding: '14px 16px' }}>Final Price</th>
+                    <th style={{ padding: '14px 16px' }}>Stock</th>
+                    <th style={{ padding: '14px 16px', textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {books
+                    .filter(b => !searchQuery || b.title.toLowerCase().includes(searchQuery.toLowerCase()) || b.grade.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((book) => (
+                      <tr key={book.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                        <td style={{ padding: '14px 16px', fontWeight: 700, color: '#111827' }}>
+                          {book.title}
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <span style={{ padding: '3px 8px', borderRadius: '6px', backgroundColor: '#EFF6FF', color: '#2563EB', fontWeight: 700, fontSize: '12px' }}>
+                            {book.grade}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 16px', color: '#4B5563' }}>
+                          {book.category || 'General'}
+                        </td>
+                        <td style={{ padding: '14px 16px', color: '#6B7280' }}>
+                          Rs. {(book.old || book.price).toLocaleString()}
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          {book.discountPercent && book.discountPercent > 0 ? (
+                            <span style={{ padding: '3px 8px', borderRadius: '999px', backgroundColor: '#FEF3C7', color: '#D97706', fontWeight: 800, fontSize: '11.5px' }}>
+                              {book.discountPercent}% OFF
+                            </span>
+                          ) : (
+                            <span style={{ color: '#9CA3AF' }}>0%</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '14px 16px', fontWeight: 800, color: '#111827' }}>
+                          Rs. {book.price.toLocaleString()}
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <span
+                            onClick={() => {
+                              updateBook(book.id, { inStock: !book.inStock });
+                              showToast(`Stock updated for ${book.title}`);
+                            }}
+                            style={{
+                              padding: '3px 10px',
+                              borderRadius: '999px',
+                              backgroundColor: book.inStock !== false ? '#DCFCE7' : '#FEE2E2',
+                              color: book.inStock !== false ? '#15803D' : '#B91C1C',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {book.inStock !== false ? '● In Stock' : '✕ Out of Stock'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                          <div style={{ display: 'inline-flex', gap: '8px' }}>
+                            <button
+                              onClick={() => openEditBookModal(book)}
+                              style={{ padding: '6px', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF', cursor: 'pointer' }}
+                              title="Edit Book"
+                            >
+                              <Edit3 size={15} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm(`Are you sure you want to delete "${book.title}"?`)) {
+                                  deleteBook(book.id);
+                                  showToast('Book removed from store');
+                                }
+                              }}
+                              style={{ padding: '6px', borderRadius: '8px', border: '1px solid #FCA5A5', backgroundColor: '#FEF2F2', color: '#DC2626', cursor: 'pointer' }}
+                              title="Delete Book"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* --------------------------------------------------------- */}
+        {/* TAB 3: SAMPLE DESIGNS & CATEGORIES */}
+        {/* --------------------------------------------------------- */}
+        {activeTab === 'designs' && (
+          <div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ fontSize: '22px', fontWeight: 800, margin: 0 }}>Sample Designs & Printing Works</h2>
+                <p style={{ fontSize: '13px', color: '#6B7280', margin: 0, marginTop: '2px' }}>
+                  Manage portfolio designs and customize design categories (create, edit, delete).
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={() => {
+                    setEditingCategoryOldName(null);
+                    setNewCategoryName('');
+                    setCategoryModalOpen(true);
+                  }}
+                  style={{
+                    height: '42px',
+                    padding: '0 16px',
+                    borderRadius: '10px',
+                    backgroundColor: '#FFFFFF',
+                    color: '#121212',
+                    border: '1px solid #D1D5DB',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <FolderPlus size={16} />
+                  Categories ({designCategories.length})
+                </button>
+
+                <button
+                  onClick={openAddDesignModal}
+                  style={{
+                    height: '42px',
+                    padding: '0 20px',
+                    borderRadius: '10px',
+                    backgroundColor: '#B77B3D',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '13.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <Plus size={16} />
+                  Add Design Item
+                </button>
+              </div>
+            </div>
+
+            {/* Category Badges Manager Row */}
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: '14px',
+                border: '1px solid #E5E7EB',
+                padding: '16px',
+                marginBottom: '20px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: '10px'
+              }}
+            >
+              <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#6B7280' }}>
+                Active Categories:
+              </span>
+              {designCategories.map((cat) => {
+                const count = designs.filter(d => d.cat === cat).length;
+                return (
+                  <div
+                    key={cat}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '6px 12px',
+                      borderRadius: '999px',
+                      backgroundColor: '#F3F4F6',
+                      border: '1px solid #E5E7EB',
+                      fontSize: '12.5px',
+                      fontWeight: 600
+                    }}
+                  >
+                    <span>{cat}</span>
+                    <span style={{ backgroundColor: '#E5E7EB', padding: '1px 6px', borderRadius: '999px', fontSize: '11px', color: '#4B5563' }}>
+                      {count}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setEditingCategoryOldName(cat);
+                        setNewCategoryName(cat);
+                        setCategoryModalOpen(true);
+                      }}
+                      style={{ background: 'transparent', border: 'none', color: '#6B7280', cursor: 'pointer', padding: 0 }}
+                      title="Rename Category"
+                    >
+                      <Edit3 size={12} />
+                    </button>
+                    {designCategories.length > 1 && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`Delete category "${cat}"? Items will be moved to default.`)) {
+                            deleteDesignCategory(cat);
+                            showToast(`Category "${cat}" deleted`);
+                          }
+                        }}
+                        style={{ background: 'transparent', border: 'none', color: '#DC2626', cursor: 'pointer', padding: 0 }}
+                        title="Delete Category"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Designs Grid */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                gap: '20px'
+              }}
+            >
+              {designs.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: '16px',
+                    border: '1px solid #E5E7EB',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+                  }}
+                >
+                  <div>
+                    <div style={{ height: '160px', backgroundColor: '#1E1E1E', position: 'relative' }}>
+                      {item.image ? (
+                        <img src={item.image} alt={item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px' }}>
+                          🎨
+                        </div>
+                      )}
+                      <span style={{ position: 'absolute', top: '10px', left: '10px', padding: '3px 8px', borderRadius: '6px', backgroundColor: 'rgba(0,0,0,0.7)', color: '#FFFFFF', fontSize: '11px', fontWeight: 700 }}>
+                        {item.cat}
+                      </span>
+                      {item.tag && (
+                        <span style={{ position: 'absolute', top: '10px', right: '10px', padding: '3px 8px', borderRadius: '6px', backgroundColor: '#B77B3D', color: '#FFFFFF', fontSize: '11px', fontWeight: 700 }}>
+                          {item.tag}
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ padding: '16px' }}>
+                      <h4 style={{ fontSize: '15px', fontWeight: 800, margin: 0, color: '#111827' }}>
+                        {item.title}
+                      </h4>
+                      <p style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '4px', lineHeight: 1.4 }}>
+                        {item.subtitle}
+                      </p>
+                      {item.paperSpec && (
+                        <div style={{ fontSize: '11.5px', color: '#B77B3D', fontWeight: 600, marginTop: '6px' }}>
+                          📜 {item.paperSpec}
+                        </div>
+                      )}
+                      {item.priceNote && (
+                        <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '2px' }}>
+                          {item.priceNote}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '12px 16px', borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#111827' }}>
+                      Rs. {(item.price || 150).toLocaleString()}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => openEditDesignModal(item)}
+                        style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Edit3 size={13} />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Delete "${item.title}"?`)) {
+                            deleteDesign(item.id);
+                            showToast('Design item deleted');
+                          }
+                        }}
+                        style={{ padding: '6px', borderRadius: '8px', border: '1px solid #FCA5A5', backgroundColor: '#FEF2F2', color: '#DC2626', cursor: 'pointer' }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* --------------------------------------------------------- */}
+        {/* TAB 4: STATIONERY ITEMS */}
+        {/* --------------------------------------------------------- */}
+        {activeTab === 'stationery' && (
+          <div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ fontSize: '22px', fontWeight: 800, margin: 0 }}>Stationery Items Management</h2>
+                <p style={{ fontSize: '13px', color: '#6B7280', margin: 0, marginTop: '2px' }}>
+                  Manage A-Z school & office stationery inventory, prices, and discount percentages.
+                </p>
+              </div>
+
+              <button
+                onClick={openAddStationeryModal}
+                style={{
+                  height: '42px',
+                  padding: '0 20px',
+                  borderRadius: '10px',
+                  backgroundColor: '#1E3A5F',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontSize: '13.5px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <Plus size={16} />
+                Add Stationery Item
+              </button>
+            </div>
+
+            {/* Table */}
+            <div style={{ backgroundColor: '#FFFFFF', borderRadius: '16px', border: '1px solid #E5E7EB', overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13.5px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB', color: '#6B7280', fontWeight: 600 }}>
+                    <th style={{ padding: '14px 16px' }}>Item Name</th>
+                    <th style={{ padding: '14px 16px' }}>Category</th>
+                    <th style={{ padding: '14px 16px' }}>Original Price</th>
+                    <th style={{ padding: '14px 16px' }}>Discount %</th>
+                    <th style={{ padding: '14px 16px' }}>Selling Price</th>
+                    <th style={{ padding: '14px 16px' }}>Stock Info</th>
+                    <th style={{ padding: '14px 16px' }}>Status</th>
+                    <th style={{ padding: '14px 16px', textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stationeryItems.map((item) => (
+                    <tr key={String(item.id || item.name)} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                      <td style={{ padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '18px' }}>{item.icon || '✏️'}</span>
+                          <span style={{ fontWeight: 700, color: '#111827' }}>{item.name}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '14px 16px', color: '#4B5563' }}>
+                        {item.category || 'General'}
+                      </td>
+                      <td style={{ padding: '14px 16px', color: '#6B7280' }}>
+                        Rs. {(item.oldPrice || item.price || 0).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        {item.discountPercent && item.discountPercent > 0 ? (
+                          <span style={{ padding: '3px 8px', borderRadius: '999px', backgroundColor: '#FEF3C7', color: '#D97706', fontWeight: 800, fontSize: '11.5px' }}>
+                            {item.discountPercent}% OFF
+                          </span>
+                        ) : (
+                          <span style={{ color: '#9CA3AF' }}>0%</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '14px 16px', fontWeight: 800, color: '#111827' }}>
+                        Rs. {(item.price || 0).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '14px 16px', color: '#6B7280' }}>
+                        {item.count || 'In Stock'}
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span
+                          onClick={() => {
+                            if (item.id) {
+                              updateStationery(item.id, { inStock: !item.inStock });
+                              showToast(`Stock updated for ${item.name}`);
+                            }
+                          }}
+                          style={{
+                            padding: '3px 10px',
+                            borderRadius: '999px',
+                            backgroundColor: item.inStock ? '#DCFCE7' : '#FEE2E2',
+                            color: item.inStock ? '#15803D' : '#B91C1C',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {item.inStock ? '● In Stock' : '✕ Out of Stock'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: '8px' }}>
+                          <button
+                            onClick={() => openEditStationeryModal(item)}
+                            style={{ padding: '6px', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF', cursor: 'pointer' }}
+                            title="Edit Item"
+                          >
+                            <Edit3 size={15} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Delete "${item.name}"?`)) {
+                                if (item.id) deleteStationery(item.id);
+                                showToast('Stationery item removed');
+                              }
+                            }}
+                            style={{ padding: '6px', borderRadius: '8px', border: '1px solid #FCA5A5', backgroundColor: '#FEF2F2', color: '#DC2626', cursor: 'pointer' }}
+                            title="Delete Item"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* --------------------------------------------------------- */}
+        {/* TAB 5: OFFERS SECTION WITH ACTIVE/INACTIVE TOGGLE */}
+        {/* --------------------------------------------------------- */}
+        {activeTab === 'offers' && (
+          <div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ fontSize: '22px', fontWeight: 800, margin: 0 }}>Offers & Promotions Management</h2>
+                <p style={{ fontSize: '13px', color: '#6B7280', margin: 0, marginTop: '2px' }}>
+                  Toggle Active/Inactive offers → Frontend automatically shows or hides them in real time.
+                </p>
+              </div>
+
+              <button
+                onClick={openAddOfferModal}
+                style={{
+                  height: '42px',
+                  padding: '0 20px',
+                  borderRadius: '10px',
+                  backgroundColor: '#0F766E',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontSize: '13.5px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <Plus size={16} />
+                Create New Offer
+              </button>
+            </div>
+
+            {/* Offers Cards with Toggle Switch */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
+              {offers.map((offer) => {
+                const isActive = offer.isActive !== false;
+                return (
+                  <div
+                    key={offer.id}
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: '16px',
+                      border: isActive ? '2px solid #0F766E' : '1px solid #E5E7EB',
+                      padding: '20px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                      opacity: isActive ? 1 : 0.65
+                    }}
+                  >
+                    <div>
+                      {/* Top Bar with Active Toggle Switch */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '24px' }}>{offer.icon || '🎁'}</span>
+                          <span style={{ padding: '3px 8px', borderRadius: '6px', backgroundColor: '#121212', color: '#FFFFFF', fontSize: '11px', fontWeight: 800 }}>
+                            {offer.badge || offer.off || 'OFFER'}
+                          </span>
+                        </div>
+
+                        {/* TOGGLE ACTIVE / INACTIVE */}
+                        <button
+                          onClick={() => {
+                            toggleOfferActive(offer.id);
+                            showToast(isActive ? 'Offer hidden from storefront' : 'Offer published to storefront!');
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '6px 12px',
+                            borderRadius: '999px',
+                            backgroundColor: isActive ? '#DCFCE7' : '#F3F4F6',
+                            color: isActive ? '#15803D' : '#6B7280',
+                            border: 'none',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                          title="Click to toggle Active/Inactive"
+                        >
+                          {isActive ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                          <span>{isActive ? 'ACTIVE' : 'INACTIVE'}</span>
+                        </button>
+                      </div>
+
+                      <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: '#111827' }}>
+                        {offer.title}
+                      </h3>
+
+                      {offer.description && (
+                        <p style={{ fontSize: '12.5px', color: '#6B7280', marginTop: '6px', lineHeight: 1.4 }}>
+                          {offer.description}
+                        </p>
+                      )}
+
+                      {offer.promoCode && (
+                        <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                          <span style={{ color: '#6B7280' }}>Promo Code:</span>
+                          <span style={{ padding: '2px 8px', borderRadius: '6px', backgroundColor: '#FEF3C7', color: '#92400E', fontWeight: 700, fontFamily: 'monospace' }}>
+                            {offer.promoCode}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ marginTop: '18px', paddingTop: '14px', borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontSize: '17px', fontWeight: 800, color: '#111827' }}>
+                          Rs. {offer.price.toLocaleString()}
+                        </div>
+                        {offer.old && (
+                          <div style={{ fontSize: '12px', textDecoration: 'line-through', color: '#9CA3AF' }}>
+                            Rs. {offer.old.toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => openEditOfferModal(offer)}
+                          style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <Edit3 size={13} />
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Delete offer "${offer.title}"?`)) {
+                              deleteOffer(offer.id);
+                              showToast('Offer deleted');
+                            }
+                          }}
+                          style={{ padding: '6px', borderRadius: '8px', border: '1px solid #FCA5A5', backgroundColor: '#FEF2F2', color: '#DC2626', cursor: 'pointer' }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* --------------------------------------------------------- */}
+        {/* TAB 6: CUSTOMER ENQUIRIES & QUOTES */}
+        {/* --------------------------------------------------------- */}
+        {activeTab === 'enquiries' && (
+          <div>
+            <div style={{ marginBottom: '20px' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: 800, margin: 0 }}>Customer Quotes & Inquiries</h2>
+              <p style={{ fontSize: '13px', color: '#6B7280', margin: 0, marginTop: '2px' }}>
+                Customer requests submitted via website. Click WhatsApp to reply directly with inquiry context.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {enquiries.map((enq) => {
+                const replyWaUrl = `https://wa.me/${enq.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                  `Hello ${enq.name}! 👋 Thank you for inquiring at Unique Printers regarding "${enq.serviceType}". We are happy to assist you!`
+                )}`;
+
+                return (
+                  <div
+                    key={enq.id}
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: '16px',
+                      border: '1px solid #E5E7EB',
+                      padding: '20px',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '16px'
+                    }}
+                  >
+                    <div style={{ flex: '1 1 300px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <h4 style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: '#111827' }}>
+                          {enq.name}
+                        </h4>
+                        <span style={{ padding: '2px 8px', borderRadius: '999px', backgroundColor: '#EFF6FF', color: '#2563EB', fontSize: '11px', fontWeight: 700 }}>
+                          {enq.serviceType}
+                        </span>
+                        <span
+                          style={{
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                            backgroundColor: enq.status === 'completed' ? '#DCFCE7' : (enq.status === 'contacted' ? '#FEF3C7' : '#F3F4F6'),
+                            color: enq.status === 'completed' ? '#15803D' : (enq.status === 'contacted' ? '#B45309' : '#6B7280'),
+                            fontSize: '11px',
+                            fontWeight: 700
+                          }}
+                        >
+                          {(enq.status || 'pending').toUpperCase()}
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize: '13px', color: '#4B5563', marginTop: '6px' }}>
+                        📞 <b>{enq.phone}</b>
+                      </div>
+
+                      <div style={{ marginTop: '8px', fontSize: '13px', color: '#1F2937', backgroundColor: '#F9FAFB', padding: '10px 14px', borderRadius: '10px', border: '1px solid #F3F4F6' }}>
+                        "{enq.notes}"
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <select
+                        value={enq.status || 'pending'}
+                        onChange={(e) => {
+                          updateEnquiryStatus(enq.id, e.target.value as any);
+                          showToast(`Inquiry status updated to ${e.target.value}`);
+                        }}
+                        style={{
+                          height: '38px',
+                          borderRadius: '8px',
+                          padding: '0 10px',
+                          border: '1px solid #D1D5DB',
+                          backgroundColor: '#FFFFFF',
+                          fontSize: '12.5px',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="contacted">Contacted</option>
+                        <option value="completed">Completed</option>
+                      </select>
+
+                      <a
+                        href={replyWaUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          height: '38px',
+                          padding: '0 14px',
+                          borderRadius: '8px',
+                          backgroundColor: '#25D366',
+                          color: '#FFFFFF',
+                          fontSize: '12.5px',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          textDecoration: 'none'
+                        }}
+                      >
+                        <MessageCircle size={15} />
+                        Reply WhatsApp
+                      </a>
+
+                      <button
+                        onClick={() => {
+                          if (confirm(`Delete inquiry from ${enq.name}?`)) {
+                            deleteEnquiry(enq.id);
+                            showToast('Inquiry deleted');
+                          }
+                        }}
+                        style={{ padding: '8px', borderRadius: '8px', border: '1px solid #FCA5A5', backgroundColor: '#FEF2F2', color: '#DC2626', cursor: 'pointer' }}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* --------------------------------------------------------- */}
+      {/* MODAL 1: ADD / EDIT BOOK */}
+      {/* --------------------------------------------------------- */}
+      {bookModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
+          <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>
+                {editingBook ? 'Edit School Book' : 'Add New School Book'}
+              </h3>
+              <button onClick={() => setBookModalOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+            </div>
+
+            <form onSubmit={handleSaveBook} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Book Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={bookForm.title}
+                  onChange={(e) => setBookForm({ ...bookForm, title: e.target.value })}
+                  placeholder="e.g. Grade 10 Mathematics Workbook (English Medium)"
+                  style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Grade *</label>
+                  <select
+                    value={bookForm.grade}
+                    onChange={(e) => setBookForm({ ...bookForm, grade: e.target.value })}
+                    style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                  >
+                    <option value="Grade 5">Grade 5</option>
+                    <option value="Grade 6">Grade 6</option>
+                    <option value="Grade 8">Grade 8</option>
+                    <option value="Grade 10">Grade 10</option>
+                    <option value="O/L">O/L</option>
+                    <option value="A/L">A/L</option>
+                    <option value="General">General</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Category *</label>
+                  <input
+                    type="text"
+                    value={bookForm.category}
+                    onChange={(e) => setBookForm({ ...bookForm, category: e.target.value })}
+                    placeholder="e.g. Workbooks, Past Papers"
+                    style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                  />
+                </div>
+              </div>
+
+              {/* Price & Discount Calculator */}
+              <div style={{ backgroundColor: '#F9FAFB', padding: '16px', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#111827', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Percent size={15} style={{ color: '#B77B3D' }} />
+                  <span>Pricing & Percentage Discount Setup</span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Original Price (Rs.) *</label>
+                    <input
+                      type="number"
+                      required
+                      min={0}
+                      value={bookForm.originalPrice}
+                      onChange={(e) => setBookForm({ ...bookForm, originalPrice: Number(e.target.value) })}
+                      style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 10px', fontSize: '13.5px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Discount % (0 to 100)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={bookForm.discountPercent}
+                      onChange={(e) => setBookForm({ ...bookForm, discountPercent: Number(e.target.value) })}
+                      style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 10px', fontSize: '13.5px' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Live Calculated Price */}
+                <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '8px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB' }}>
+                  <span style={{ fontSize: '12.5px', color: '#4B5563' }}>Selling Price to Customer:</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                    <span style={{ fontSize: '16px', fontWeight: 800, color: '#15803D' }}>
+                      Rs. {Math.round(bookForm.originalPrice * (1 - (bookForm.discountPercent || 0) / 100)).toLocaleString()}
+                    </span>
+                    {bookForm.discountPercent > 0 && (
+                      <span style={{ fontSize: '11px', color: '#B77B3D', fontWeight: 700 }}>
+                        (Saves Rs. {Math.round(bookForm.originalPrice * (bookForm.discountPercent / 100)).toLocaleString()})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Subject Accent Label</label>
+                <input
+                  type="text"
+                  value={bookForm.accent}
+                  onChange={(e) => setBookForm({ ...bookForm, accent: e.target.value })}
+                  placeholder="e.g. Mathematics, Science, History"
+                  style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={bookForm.inStock}
+                    onChange={(e) => setBookForm({ ...bookForm, inStock: e.target.checked })}
+                    style={{ accentColor: '#121212', width: '16px', height: '16px' }}
+                  />
+                  Mark as Available In Stock
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setBookModalOpen(false)}
+                  style={{ height: '42px', padding: '0 18px', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ height: '42px', padding: '0 24px', borderRadius: '8px', border: 'none', backgroundColor: '#121212', color: '#FFFFFF', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  {editingBook ? 'Save Changes' : 'Add Book'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
-      {/* Top Header Bar */}
-      <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#121829]/95 backdrop-blur-md border-b border-gray-200/80 dark:border-gray-800/80 px-4 sm:px-8 py-3.5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          {/* Brand & Mobile Hamburger */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-              aria-label="Toggle Navigation"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
+      {/* --------------------------------------------------------- */}
+      {/* MODAL 2: ADD / EDIT DESIGN ITEM */}
+      {/* --------------------------------------------------------- */}
+      {designModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
+          <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>
+                {editingDesign ? 'Edit Sample Design' : 'Add Sample Design Item'}
+              </h3>
+              <button onClick={() => setDesignModalOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+            </div>
 
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-600 to-amber-700 flex items-center justify-center text-white font-bold shadow-sm shadow-amber-600/30">
-                <BookOpen className="w-5 h-5" />
-              </div>
+            <form onSubmit={handleSaveDesign} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
-                <span className="font-bold text-sm sm:text-base tracking-tight text-gray-900 dark:text-white block leading-tight">
-                  Unique Printers
-                </span>
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold tracking-wider uppercase">
-                  Admin Dashboard
-                </span>
+                <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Design Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={designForm.title}
+                  onChange={(e) => setDesignForm({ ...designForm, title: e.target.value })}
+                  placeholder="e.g. Royal Gold Crest Wedding Card"
+                  style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                />
               </div>
-            </div>
-          </div>
 
-          {/* Center Connection Indicator */}
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Database Live & Synced</span>
-          </div>
+              <div>
+                <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Category *</label>
+                <select
+                  value={designForm.cat}
+                  onChange={(e) => setDesignForm({ ...designForm, cat: e.target.value })}
+                  style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                >
+                  {designCategories.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
 
-          {/* User Profile & Actions */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              onClick={handleReturnToStore}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              title="Return to Public Website"
-            >
-              <ExternalLink className="w-4 h-4" />
-              <span className="hidden sm:inline">View Store</span>
-            </button>
+              <div>
+                <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Subtitle / Typography Details</label>
+                <input
+                  type="text"
+                  value={designForm.subtitle}
+                  onChange={(e) => setDesignForm({ ...designForm, subtitle: e.target.value })}
+                  placeholder="e.g. Classic Floral • Gold Script Typography"
+                  style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                />
+              </div>
 
-            <div className="hidden sm:flex flex-col text-right">
-              <span className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate max-w-[150px]">
-                {session?.user?.email?.split('@')[0]}
-              </span>
-              <span className="text-[10px] text-gray-500 dark:text-gray-400 truncate max-w-[150px]">
-                {session?.user?.email}
-              </span>
-            </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Paper & Material Spec</label>
+                  <input
+                    type="text"
+                    value={designForm.paperSpec}
+                    onChange={(e) => setDesignForm({ ...designForm, paperSpec: e.target.value })}
+                    placeholder="e.g. 300gsm Textured Pearl Card"
+                    style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                  />
+                </div>
 
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200/60 dark:border-rose-900/60 text-xs font-semibold hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-colors"
-              title="Log out of admin panel"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Sign Out</span>
-            </button>
+                <div>
+                  <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Badge / Tag</label>
+                  <input
+                    type="text"
+                    value={designForm.tag}
+                    onChange={(e) => setDesignForm({ ...designForm, tag: e.target.value })}
+                    placeholder="e.g. Popular, Trending, Best Seller"
+                    style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Price Guide / Note</label>
+                <input
+                  type="text"
+                  value={designForm.priceNote}
+                  onChange={(e) => setDesignForm({ ...designForm, priceNote: e.target.value })}
+                  placeholder="e.g. Starting from Rs. 120 / card"
+                  style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Image URL / Local Asset Path</label>
+                <input
+                  type="text"
+                  value={designForm.image}
+                  onChange={(e) => setDesignForm({ ...designForm, image: e.target.value })}
+                  placeholder="e.g. /assets/samples/wedding_invite_classic.jpg"
+                  style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setDesignModalOpen(false)}
+                  style={{ height: '42px', padding: '0 18px', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ height: '42px', padding: '0 24px', borderRadius: '8px', border: 'none', backgroundColor: '#B77B3D', color: '#FFFFFF', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  {editingDesign ? 'Save Design' : 'Publish Design'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </header>
+      )}
 
-      {/* Main Layout Container */}
-      <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col md:flex-row gap-6 p-4 sm:p-6 lg:p-8">
-        {/* Sidebar Navigation */}
-        <aside className={`w-full md:w-64 flex flex-col gap-4 flex-shrink-0 ${mobileMenuOpen ? 'block' : 'hidden md:flex'}`}>
-          <div className="bg-white dark:bg-[#121829] rounded-2xl p-4 border border-gray-200/80 dark:border-gray-800/80 shadow-sm flex flex-col gap-2">
-            <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-              Management
+      {/* --------------------------------------------------------- */}
+      {/* MODAL 3: MANAGE DESIGN CATEGORIES (CREATE / EDIT) */}
+      {/* --------------------------------------------------------- */}
+      {categoryModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
+          <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', width: '100%', maxWidth: '440px', padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>
+                {editingCategoryOldName ? 'Rename Category' : 'Create New Category'}
+              </h3>
+              <button onClick={() => setCategoryModalOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px' }}>✕</button>
             </div>
 
-            <button
-              onClick={() => {
-                setActiveTab('books');
-                setSearchQuery('');
-                setMobileMenuOpen(false);
-              }}
-              style={{ padding: '10px 14px' }}
-              className={`flex items-center justify-between rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'books'
-                  ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25 font-bold'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/60'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <BookOpen className="w-4 h-4" />
-                <span>Books Catalog</span>
-              </div>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                activeTab === 'books' ? 'bg-white/20 text-white' : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-              }`}>
-                {stats.totalBooks}
-              </span>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab('enquiries');
-                setSearchQuery('');
-                setMobileMenuOpen(false);
-              }}
-              style={{ padding: '10px 14px' }}
-              className={`flex items-center justify-between rounded-xl text-xs font-semibold transition-all ${
-                activeTab === 'enquiries'
-                  ? 'bg-amber-500 text-white shadow-md shadow-amber-500/25 font-bold'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/60'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <MessageSquare className="w-4 h-4" />
-                <span>Customer Enquiries</span>
-              </div>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                activeTab === 'enquiries' ? 'bg-white/20 text-white' : 'bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-              }`}>
-                {stats.totalEnquiries}
-              </span>
-            </button>
-          </div>
-
-          {/* Quick Help Card */}
-          <div className="mt-auto hidden md:block bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent rounded-2xl p-5 border border-amber-500/20 text-xs">
-            <h4 className="font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5 mb-1.5">
-              <ShoppingBag className="w-3.5 h-3.5" />
-              <span>Unique Printers</span>
-            </h4>
-            <p className="text-gray-600 dark:text-gray-400 text-[11px] leading-relaxed">
-              Manage school workbooks, past papers, and review incoming customer print & design inquiries.
+            <p style={{ fontSize: '13px', color: '#6B7280', marginTop: 0, marginBottom: '16px' }}>
+              Categories are displayed on the public portfolio filter and available in the design creator dropdown.
             </p>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!newCategoryName.trim()) return;
+                if (editingCategoryOldName) {
+                  updateDesignCategory(editingCategoryOldName, newCategoryName.trim());
+                  showToast(`Category renamed to "${newCategoryName.trim()}"`);
+                } else {
+                  addDesignCategory(newCategoryName.trim());
+                  showToast(`Category "${newCategoryName.trim()}" created`);
+                }
+                setCategoryModalOpen(false);
+              }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}
+            >
+              <div>
+                <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Category Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="e.g. Stickers & Decals, Envelopes"
+                  style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setCategoryModalOpen(false)}
+                  style={{ height: '40px', padding: '0 16px', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ height: '40px', padding: '0 20px', borderRadius: '8px', border: 'none', backgroundColor: '#121212', color: '#FFFFFF', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  {editingCategoryOldName ? 'Save Name' : 'Create Category'}
+                </button>
+              </div>
+            </form>
           </div>
-        </aside>
+        </div>
+      )}
 
-        {/* Main Content View */}
-        <main className="flex-1 min-w-0 space-y-6">
-          {/* Top KPI Metric Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-            {/* Card 1: Books */}
-            <div className="bg-white dark:bg-[#121829] rounded-2xl p-4 sm:p-5 border border-gray-200/80 dark:border-gray-800/80 shadow-sm relative overflow-hidden group">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Total Books</span>
-                <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                  <BookOpen className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="mt-2.5 flex items-baseline gap-2">
-                <span className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white">
-                  {stats.totalBooks}
-                </span>
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">
-                  {stats.inStockBooks} in stock
-                </span>
-              </div>
+      {/* --------------------------------------------------------- */}
+      {/* MODAL 4: ADD / EDIT STATIONERY PRODUCT */}
+      {/* --------------------------------------------------------- */}
+      {stationeryModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
+          <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>
+                {editingStationery ? 'Edit Stationery Item' : 'Add Stationery Product'}
+              </h3>
+              <button onClick={() => setStationeryModalOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px' }}>✕</button>
             </div>
 
-            {/* Card 2: Catalog Value */}
-            <div className="bg-white dark:bg-[#121829] rounded-2xl p-4 sm:p-5 border border-gray-200/80 dark:border-gray-800/80 shadow-sm relative overflow-hidden group">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Inventory Value</span>
-                <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4" />
-                </div>
+            <form onSubmit={handleSaveStationery} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Product Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={stationeryForm.name}
+                  onChange={(e) => setStationeryForm({ ...stationeryForm, name: e.target.value })}
+                  placeholder="e.g. Atlas CR Book 200 Pages (Checked Rule)"
+                  style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                />
               </div>
-              <div className="mt-2.5">
-                <span className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-white">
-                  Rs. {stats.catalogValue.toLocaleString()}
-                </span>
-              </div>
-            </div>
 
-            {/* Card 3: Out of stock */}
-            <div className="bg-white dark:bg-[#121829] rounded-2xl p-4 sm:p-5 border border-gray-200/80 dark:border-gray-800/80 shadow-sm relative overflow-hidden group">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Out of Stock</span>
-                <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
-                  <PackageCheck className="w-4 h-4" />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Category *</label>
+                  <select
+                    value={stationeryForm.category}
+                    onChange={(e) => setStationeryForm({ ...stationeryForm, category: e.target.value })}
+                    style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                  >
+                    {stationeryCategories.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
                 </div>
-              </div>
-              <div className="mt-2.5 flex items-baseline gap-2">
-                <span className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white">
-                  {stats.outOfStockBooks}
-                </span>
-                <span className="text-xs text-gray-400 font-medium">
-                  {stats.outOfStockBooks === 0 ? 'All stocked' : 'Need restock'}
-                </span>
-              </div>
-            </div>
 
-            {/* Card 4: Enquiries */}
-            <div className="bg-white dark:bg-[#121829] rounded-2xl p-4 sm:p-5 border border-gray-200/80 dark:border-gray-800/80 shadow-sm relative overflow-hidden group">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">Total Enquiries</span>
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                  <MessageSquare className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="mt-2.5 flex items-baseline gap-2">
-                <span className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white">
-                  {stats.totalEnquiries}
-                </span>
-                <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                  Leads logged
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* ── TAB 1: BOOKS INVENTORY ── */}
-          {activeTab === 'books' && (
-            <div className="space-y-4">
-              {/* Controls Bar */}
-              <div className="bg-white dark:bg-[#121829] rounded-2xl p-4 sm:p-5 border border-gray-200/80 dark:border-gray-800/80 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-                {/* Search Bar */}
-                <div className="relative flex-1 max-w-md">
-                  <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <div>
+                  <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Package / Count Tag</label>
                   <input
                     type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search books by title, grade, or category..."
-                    style={{ paddingLeft: '2.5rem', paddingRight: '2rem', paddingTop: '0.6rem', paddingBottom: '0.6rem' }}
-                    className="w-full text-xs rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                    value={stationeryForm.count}
+                    onChange={(e) => setStationeryForm({ ...stationeryForm, count: e.target.value })}
+                    placeholder="e.g. Pack of 10, Box of 50"
+                    style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
                   />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Filters and Actions */}
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  {/* Stock Filter Pills */}
-                  <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 text-xs">
-                    <button
-                      onClick={() => setStockFilter('all')}
-                      style={{ padding: '6px 12px' }}
-                      className={`rounded-lg font-medium transition-all ${
-                        stockFilter === 'all'
-                          ? 'bg-white dark:bg-[#121829] text-gray-900 dark:text-white shadow-sm font-semibold'
-                          : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
-                      }`}
-                    >
-                      All
-                    </button>
-                    <button
-                      onClick={() => setStockFilter('inStock')}
-                      style={{ padding: '6px 12px' }}
-                      className={`rounded-lg font-medium transition-all ${
-                        stockFilter === 'inStock'
-                          ? 'bg-white dark:bg-[#121829] text-emerald-600 shadow-sm font-semibold'
-                          : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
-                      }`}
-                    >
-                      In Stock
-                    </button>
-                    <button
-                      onClick={() => setStockFilter('outOfStock')}
-                      style={{ padding: '6px 12px' }}
-                      className={`rounded-lg font-medium transition-all ${
-                        stockFilter === 'outOfStock'
-                          ? 'bg-white dark:bg-[#121829] text-rose-600 shadow-sm font-semibold'
-                          : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
-                      }`}
-                    >
-                      Out
-                    </button>
-                  </div>
-
-                  {/* Grade dropdown */}
-                  {availableGrades.length > 0 && (
-                    <select
-                      value={selectedGrade}
-                      onChange={(e) => setSelectedGrade(e.target.value)}
-                      className="px-2.5 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-xs font-medium text-gray-700 dark:text-gray-300 focus:outline-none"
-                    >
-                      <option value="all">All Grades</option>
-                      {availableGrades.map((grade) => (
-                        <option key={grade} value={grade}>{grade}</option>
-                      ))}
-                    </select>
-                  )}
-
-                  {/* View Mode Toggle */}
-                  <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-xl p-1 text-xs">
-                    <button
-                      onClick={() => setBookViewMode('table')}
-                      className={`p-1.5 rounded-lg transition-colors ${
-                        bookViewMode === 'table'
-                          ? 'bg-white dark:bg-[#121829] text-amber-600 shadow-sm'
-                          : 'text-gray-400 hover:text-gray-600'
-                      }`}
-                      title="Table View"
-                    >
-                      <List className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setBookViewMode('grid')}
-                      className={`p-1.5 rounded-lg transition-colors ${
-                        bookViewMode === 'grid'
-                          ? 'bg-white dark:bg-[#121829] text-amber-600 shadow-sm'
-                          : 'text-gray-400 hover:text-gray-600'
-                      }`}
-                      title="Visual Grid View"
-                    >
-                      <Grid className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* Refresh */}
-                  <button
-                    onClick={() => refetchBooks()}
-                    disabled={booksFetching}
-                    className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors"
-                    title="Refresh list"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${booksFetching ? 'animate-spin text-amber-500' : ''}`} />
-                  </button>
-
-                  {/* Add Book CTA */}
-                  <button
-                    onClick={() => openBookForm()}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-sm shadow-amber-600/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Add Book</span>
-                  </button>
                 </div>
               </div>
 
-              {/* Books Content */}
-              {booksLoading ? (
-                <div className="bg-white dark:bg-[#121829] rounded-2xl p-12 text-center border border-gray-200/80 dark:border-gray-800/80">
-                  <Loader2 className="w-8 h-8 text-amber-500 animate-spin mx-auto mb-3" />
-                  <p className="text-xs text-gray-500">Loading catalog books...</p>
+              {/* Pricing & Percentage Discount */}
+              <div style={{ backgroundColor: '#F9FAFB', padding: '16px', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#111827', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Percent size={15} style={{ color: '#1E3A5F' }} />
+                  <span>Pricing & Percentage Discount</span>
                 </div>
-              ) : filteredBooks.length === 0 ? (
-                <div className="bg-white dark:bg-[#121829] rounded-2xl p-12 text-center border border-gray-200/80 dark:border-gray-800/80">
-                  <div className="w-14 h-14 rounded-2xl bg-amber-500/10 text-amber-600 mx-auto flex items-center justify-center mb-3">
-                    <BookOpen className="w-7 h-7" />
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Original Price (Rs.) *</label>
+                    <input
+                      type="number"
+                      required
+                      min={0}
+                      value={stationeryForm.originalPrice}
+                      onChange={(e) => setStationeryForm({ ...stationeryForm, originalPrice: Number(e.target.value) })}
+                      style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 10px', fontSize: '13.5px' }}
+                    />
                   </div>
-                  <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">No books found</h3>
-                  <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
-                    {searchQuery || stockFilter !== 'all' || selectedGrade !== 'all'
-                      ? 'No books match your active filter criteria. Try resetting filters.'
-                      : 'Your store catalog has no books yet. Click "Add Book" above to list your first book.'}
-                  </p>
-                  {(searchQuery || stockFilter !== 'all' || selectedGrade !== 'all') && (
-                    <button
-                      onClick={() => {
-                        setSearchQuery('');
-                        setStockFilter('all');
-                        setSelectedGrade('all');
-                      }}
-                      className="mt-4 px-3 py-1.5 text-xs font-semibold text-amber-600 hover:underline"
-                    >
-                      Clear All Filters
-                    </button>
-                  )}
-                </div>
-              ) : bookViewMode === 'table' ? (
-                /* ── Table View ── */
-                <div className="bg-white dark:bg-[#121829] rounded-2xl border border-gray-200/80 dark:border-gray-800/80 shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800 text-left text-xs">
-                      <thead className="bg-gray-50/70 dark:bg-[#161e33] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-semibold">
-                        <tr>
-                          <th style={{ padding: '14px 20px' }} className="w-16">Cover</th>
-                          <th style={{ padding: '14px 20px' }}>Book Title</th>
-                          <th style={{ padding: '14px 20px' }}>Grade / Cat</th>
-                          <th style={{ padding: '14px 20px' }}>Price</th>
-                          <th style={{ padding: '14px 20px' }}>Availability</th>
-                          <th style={{ padding: '14px 20px' }} className="text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 dark:divide-gray-800/60 font-medium">
-                        {filteredBooks.map((book) => (
-                          <tr key={book.id} className="hover:bg-gray-50/60 dark:hover:bg-gray-800/30 transition-colors">
-                            {/* Cover */}
-                            <td style={{ padding: '14px 20px' }} className="whitespace-nowrap">
-                              {book.image_url ? (
-                                <img
-                                  src={book.image_url}
-                                  alt={book.title}
-                                  style={{ width: '44px', height: '62px', minWidth: '44px' }}
-                                  className="object-cover rounded-lg shadow-sm border border-gray-200 dark:border-gray-700"
-                                />
-                              ) : (
-                                <div className={`w-11 h-16 rounded-lg shadow-sm flex items-center justify-center text-[9px] text-white font-bold p-1 text-center leading-tight ${book.color || 'bg-amber-600'}`}>
-                                  {book.accent || 'Book'}
-                                </div>
-                              )}
-                            </td>
 
-                            {/* Title & Desc */}
-                            <td style={{ padding: '14px 20px' }} className="max-w-xs">
-                              <span className="font-bold text-gray-900 dark:text-white block leading-snug">
-                                {book.title}
-                              </span>
-                              {book.description && (
-                                <span className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1 mt-1 block">
-                                  {book.description}
-                                </span>
-                              )}
-                            </td>
-
-                            {/* Grade / Cat */}
-                            <td style={{ padding: '14px 20px' }} className="whitespace-nowrap">
-                              <span className="inline-block px-2.5 py-1 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold text-[11px]">
-                                {book.grade}
-                              </span>
-                              {book.category && (
-                                <span className="block text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                                  {book.category}
-                                </span>
-                              )}
-                            </td>
-
-                            {/* Price */}
-                            <td style={{ padding: '14px 20px' }} className="whitespace-nowrap">
-                              <span className="font-bold text-gray-900 dark:text-white text-sm">
-                                Rs. {book.price}
-                              </span>
-                              {book.old && (
-                                <span className="block text-[11px] text-gray-400 line-through mt-0.5">
-                                  Rs. {book.old}
-                                </span>
-                              )}
-                            </td>
-
-                            {/* Stock Status */}
-                            <td style={{ padding: '14px 20px' }} className="whitespace-nowrap">
-                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold ${
-                                book.inStock !== false
-                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                                  : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
-                              }`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${book.inStock !== false ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                                {book.inStock !== false ? 'In Stock' : 'Out of Stock'}
-                              </span>
-                            </td>
-
-                            {/* Actions */}
-                            <td style={{ padding: '14px 20px' }} className="whitespace-nowrap text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <button
-                                  onClick={() => openBookForm(book)}
-                                  className="p-2 rounded-lg text-gray-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
-                                  title="Edit Book"
-                                >
-                                  <Edit3 className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => setDeleteConfirmId({ id: book.id, type: 'book' })}
-                                  className="p-2 rounded-lg text-gray-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-                                  title="Delete Book"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="px-5 py-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-[#161e33] text-[11px] text-gray-500 flex items-center justify-between">
-                    <span>Showing {filteredBooks.length} of {stats.totalBooks} books</span>
-                    <span>Unique Printers Sri Lanka</span>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Discount % (0 to 100)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={stationeryForm.discountPercent}
+                      onChange={(e) => setStationeryForm({ ...stationeryForm, discountPercent: Number(e.target.value) })}
+                      style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 10px', fontSize: '13.5px' }}
+                    />
                   </div>
                 </div>
-              ) : (
-                /* ── Grid View ── */
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredBooks.map((book) => (
-                    <div
-                      key={book.id}
-                      className="bg-white dark:bg-[#121829] rounded-2xl border border-gray-200/80 dark:border-gray-800/80 shadow-sm overflow-hidden flex flex-col hover:border-amber-500/40 transition-all group"
-                    >
-                      <div className="p-4 flex gap-4">
-                        {book.image_url ? (
-                          <img
-                            src={book.image_url}
-                            alt={book.title}
-                            style={{ width: '80px', height: '112px', minWidth: '80px' }}
-                            className="w-20 h-28 object-cover rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex-shrink-0"
-                          />
-                        ) : (
-                          <div className={`w-20 h-28 rounded-xl shadow-sm flex items-center justify-center text-xs text-white font-bold p-2 text-center flex-shrink-0 ${book.color || 'bg-amber-600'}`}>
-                            {book.accent || 'Book Cover'}
-                          </div>
-                        )}
 
-                        <div className="flex-1 min-w-0 flex flex-col justify-between">
-                          <div>
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <span className="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold text-[10px]">
-                                {book.grade}
-                              </span>
-                              {book.category && (
-                                <span className="text-[10px] text-gray-400 truncate">
-                                  {book.category}
-                                </span>
-                              )}
-                            </div>
-                            <h4 className="font-bold text-xs sm:text-sm text-gray-900 dark:text-white leading-snug line-clamp-2">
-                              {book.title}
-                            </h4>
-                          </div>
-
-                          <div className="mt-2">
-                            <div className="flex items-baseline gap-1.5">
-                              <span className="font-extrabold text-sm text-gray-900 dark:text-white">
-                                Rs. {book.price}
-                              </span>
-                              {book.old && (
-                                <span className="text-[10px] text-gray-400 line-through">
-                                  Rs. {book.old}
-                                </span>
-                              )}
-                            </div>
-
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold mt-1 ${
-                              book.inStock !== false
-                                ? 'bg-emerald-500/10 text-emerald-600'
-                                : 'bg-rose-500/10 text-rose-600'
-                            }`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${book.inStock !== false ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                              {book.inStock !== false ? 'In Stock' : 'Out of Stock'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Card Footer Actions */}
-                      <div className="px-4 py-2.5 bg-gray-50/70 dark:bg-gray-800/40 border-t border-gray-100 dark:border-gray-800/80 flex items-center justify-end gap-2 mt-auto">
-                        <button
-                          onClick={() => openBookForm(book)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:text-amber-600 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 transition-colors"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirmId({ id: book.id, type: 'book' })}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Delete</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '8px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB' }}>
+                  <span style={{ fontSize: '12.5px', color: '#4B5563' }}>Customer Selling Price:</span>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                    <span style={{ fontSize: '16px', fontWeight: 800, color: '#15803D' }}>
+                      Rs. {Math.round(stationeryForm.originalPrice * (1 - (stationeryForm.discountPercent || 0) / 100)).toLocaleString()}
+                    </span>
+                    {stationeryForm.discountPercent > 0 && (
+                      <span style={{ fontSize: '11px', color: '#1E3A5F', fontWeight: 700 }}>
+                        ({stationeryForm.discountPercent}% OFF)
+                      </span>
+                    )}
+                  </div>
                 </div>
-              )}
+              </div>
+
+              <div>
+                <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Product Description</label>
+                <textarea
+                  rows={2}
+                  value={stationeryForm.description}
+                  onChange={(e) => setStationeryForm({ ...stationeryForm, description: e.target.value })}
+                  placeholder="e.g. Smooth 70gsm white paper with laminated cover..."
+                  style={{ width: '100%', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '8px 12px', fontSize: '13px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={stationeryForm.inStock}
+                    onChange={(e) => setStationeryForm({ ...stationeryForm, inStock: e.target.checked })}
+                    style={{ accentColor: '#121212', width: '16px', height: '16px' }}
+                  />
+                  Item In Stock
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setStationeryModalOpen(false)}
+                  style={{ height: '42px', padding: '0 18px', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ height: '42px', padding: '0 24px', borderRadius: '8px', border: 'none', backgroundColor: '#1E3A5F', color: '#FFFFFF', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  {editingStationery ? 'Save Changes' : 'Add Item'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --------------------------------------------------------- */}
+      {/* MODAL 5: ADD / EDIT PROMOTIONAL OFFER */}
+      {/* --------------------------------------------------------- */}
+      {offerModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '16px' }}>
+          <div style={{ backgroundColor: '#FFFFFF', borderRadius: '20px', width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>
+                {editingOffer ? 'Edit Promotional Offer' : 'Create Promotional Offer'}
+              </h3>
+              <button onClick={() => setOfferModalOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px' }}>✕</button>
             </div>
-          )}
 
-          {/* ── TAB 2: CUSTOMER ENQUIRIES ── */}
-          {activeTab === 'enquiries' && (
-            <div className="space-y-4">
-              {/* Enquiries Top Bar */}
-              <div className="bg-white dark:bg-[#121829] rounded-2xl p-4 border border-gray-200/80 dark:border-gray-800/80 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <form onSubmit={handleSaveOffer} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Offer Headline / Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={offerForm.title}
+                  onChange={(e) => setOfferForm({ ...offerForm, title: e.target.value })}
+                  placeholder="e.g. Complete Grade 6 Stationery Starter Bundle"
+                  style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Category / Type</label>
+                  <select
+                    value={offerForm.category}
+                    onChange={(e) => setOfferForm({ ...offerForm, category: e.target.value })}
+                    style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                  >
+                    <option value="Discount Bundle">Discount Bundle</option>
+                    <option value="New Arrival">New Arrival</option>
+                    <option value="Special Deal">Special Deal</option>
+                    <option value="Flash Sale">Flash Sale</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Promo Code</label>
                   <input
                     type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search enquiries by customer name, phone, or service..."
-                    className="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                    value={offerForm.promoCode}
+                    onChange={(e) => setOfferForm({ ...offerForm, promoCode: e.target.value })}
+                    placeholder="e.g. SCHOOL20"
+                    style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
                   />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
+                </div>
+              </div>
+
+              <div style={{ backgroundColor: '#F9FAFB', padding: '16px', borderRadius: '12px', border: '1px solid #E5E7EB' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Original Price (Rs.) *</label>
+                    <input
+                      type="number"
+                      required
+                      min={0}
+                      value={offerForm.originalPrice}
+                      onChange={(e) => setOfferForm({ ...offerForm, originalPrice: Number(e.target.value) })}
+                      style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 10px', fontSize: '13.5px' }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Discount % (0 to 100)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={offerForm.discountPercent}
+                      onChange={(e) => setOfferForm({ ...offerForm, discountPercent: Number(e.target.value) })}
+                      style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 10px', fontSize: '13.5px' }}
+                    />
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => refetchEnquiries()}
-                    disabled={enquiriesFetching}
-                    className="p-2 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 transition-colors"
-                    title="Refresh enquiries"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${enquiriesFetching ? 'animate-spin text-amber-500' : ''}`} />
-                  </button>
-                  <span className="text-xs font-semibold text-gray-500">
-                    {filteredEnquiries.length} enquiry record(s)
+                <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '8px', backgroundColor: '#FFFFFF', border: '1px solid #E5E7EB' }}>
+                  <span style={{ fontSize: '12.5px', color: '#4B5563' }}>Discounted Deal Price:</span>
+                  <span style={{ fontSize: '16px', fontWeight: 800, color: '#0F766E' }}>
+                    Rs. {Math.round(offerForm.originalPrice * (1 - (offerForm.discountPercent || 0) / 100)).toLocaleString()}
                   </span>
                 </div>
               </div>
 
-              {/* Enquiries List */}
-              {enquiriesLoading ? (
-                <div className="bg-white dark:bg-[#121829] rounded-2xl p-12 text-center border border-gray-200/80 dark:border-gray-800/80">
-                  <Loader2 className="w-8 h-8 text-amber-500 animate-spin mx-auto mb-3" />
-                  <p className="text-xs text-gray-500">Loading customer enquiries...</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Badge Label</label>
+                  <input
+                    type="text"
+                    value={offerForm.badge}
+                    onChange={(e) => setOfferForm({ ...offerForm, badge: e.target.value })}
+                    placeholder="e.g. 20% OFF, LIMITED DEAL"
+                    style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                  />
                 </div>
-              ) : filteredEnquiries.length === 0 ? (
-                <div className="bg-white dark:bg-[#121829] rounded-2xl p-12 text-center border border-gray-200/80 dark:border-gray-800/80">
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-600 mx-auto flex items-center justify-center mb-3">
-                    <MessageSquare className="w-7 h-7" />
+
+                <div>
+                  <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Icon Emoji</label>
+                  <input
+                    type="text"
+                    value={offerForm.icon}
+                    onChange={(e) => setOfferForm({ ...offerForm, icon: e.target.value })}
+                    placeholder="e.g. 🎁, 🎒, ✏️, 📦"
+                    style={{ width: '100%', height: '42px', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '0 12px', fontSize: '13.5px' }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '12.5px', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Short Description</label>
+                <textarea
+                  rows={2}
+                  value={offerForm.description}
+                  onChange={(e) => setOfferForm({ ...offerForm, description: e.target.value })}
+                  placeholder="Describe the offer details..."
+                  style={{ width: '100%', borderRadius: '8px', border: '1px solid #D1D5DB', padding: '8px 12px', fontSize: '13px' }}
+                />
+              </div>
+
+              {/* ACTIVE / INACTIVE TOGGLE */}
+              <div style={{ backgroundColor: '#F0FDF4', padding: '14px 16px', borderRadius: '12px', border: '1px solid #BBF7D0' }}>
+                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#166534' }}>
+                      Publish Immediately to Frontend?
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: '#15803D' }}>
+                      {offerForm.isActive ? 'Active → Offer is visible on the homepage right now' : 'Inactive → Hidden from customers'}
+                    </div>
                   </div>
-                  <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">No customer enquiries found</h3>
-                  <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
-                    {searchQuery
-                      ? 'No enquiries match your search query.'
-                      : 'Customer enquiries submitted via the website service forms will automatically appear here.'}
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredEnquiries.map((enq: any) => {
-                    // Clean phone number for WhatsApp link
-                    const cleanPhone = enq.phone?.replace(/[^0-9]/g, '') || '';
-                    const formattedPhone = cleanPhone.startsWith('0')
-                      ? '94' + cleanPhone.substring(1)
-                      : cleanPhone;
+                  <input
+                    type="checkbox"
+                    checked={offerForm.isActive}
+                    onChange={(e) => setOfferForm({ ...offerForm, isActive: e.target.checked })}
+                    style={{ width: '20px', height: '20px', accentColor: '#0F766E' }}
+                  />
+                </label>
+              </div>
 
-                    const whatsappMessage = encodeURIComponent(
-                      `Hello ${enq.name}, thank you for contacting Unique Printers regarding "${enq.serviceType}". How may we assist you today?`
-                    );
-                    const whatsappUrl = `https://wa.me/${formattedPhone}?text=${whatsappMessage}`;
-
-                    return (
-                      <div
-                        key={enq.id}
-                        className="bg-white dark:bg-[#121829] rounded-2xl p-4 sm:p-5 border border-gray-200/80 dark:border-gray-800/80 shadow-sm hover:border-amber-500/30 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
-                      >
-                        {/* Customer Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2.5 flex-wrap">
-                            <span className="font-bold text-sm text-gray-900 dark:text-white">
-                              {enq.name}
-                            </span>
-                            <span className="px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900 text-[10px] font-bold">
-                              {enq.serviceType}
-                            </span>
-                            <span className="text-[11px] text-gray-400">
-                              {new Date(enq.created_at).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                          </div>
-
-                          <div className="mt-2 text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/40 rounded-xl p-3 border border-gray-100 dark:border-gray-800/60">
-                            <span className="font-semibold text-gray-700 dark:text-gray-300 block mb-1">
-                              Customer Notes / Specifications:
-                            </span>
-                            <p className="whitespace-pre-line text-gray-600 dark:text-gray-400">
-                              {enq.notes || 'No specific notes provided.'}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Quick Contact & Delete Actions */}
-                        <div className="flex items-center gap-2 flex-shrink-0 self-end md:self-center">
-                          {/* WhatsApp Chat Button */}
-                          {cleanPhone && (
-                            <a
-                              href={whatsappUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm shadow-emerald-600/20 transition-all hover:scale-[1.02]"
-                              title="Chat with customer on WhatsApp"
-                            >
-                              <MessageCircle className="w-4 h-4" />
-                              <span>WhatsApp</span>
-                            </a>
-                          )}
-
-                          {/* Direct Call Button */}
-                          {enq.phone && (
-                            <a
-                              href={`tel:${enq.phone}`}
-                              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 text-xs font-semibold transition-colors"
-                              title="Call customer"
-                            >
-                              <Phone className="w-3.5 h-3.5 text-gray-500" />
-                              <span className="hidden sm:inline">{enq.phone}</span>
-                            </a>
-                          )}
-
-                          {/* Delete Button */}
-                          <button
-                            onClick={() => setDeleteConfirmId({ id: enq.id, type: 'enquiry' })}
-                            className="p-2 rounded-xl text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-                            title="Delete Enquiry"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </main>
-      </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setOfferModalOpen(false)}
+                  style={{ height: '42px', padding: '0 18px', borderRadius: '8px', border: '1px solid #D1D5DB', backgroundColor: '#FFFFFF', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ height: '42px', padding: '0 24px', borderRadius: '8px', border: 'none', backgroundColor: '#0F766E', color: '#FFFFFF', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  {editingOffer ? 'Save Offer' : 'Publish Offer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
-

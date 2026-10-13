@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Copy, Check, ArrowRight, Tag, Clock } from 'lucide-react';
-import { newArrivals, saleBundles } from '../../data/sampleData';
+import { Sparkles, Copy, Check, ArrowRight, Tag, Clock, MessageCircle } from 'lucide-react';
+import { useShopStore } from '../../store/shopStore';
+import { buildProductWhatsAppUrl } from '../../lib/whatsapp';
 import { siteConfig } from '../../config/siteConfig';
 
 interface OffersSectionProps {
@@ -8,6 +9,7 @@ interface OffersSectionProps {
 }
 
 export const OffersSection: React.FC<OffersSectionProps> = ({ onAddToCart }) => {
+  const { offers } = useShopStore();
   const [copied, setCopied] = useState(false);
   const [timeLeft, setTimeLeft] = useState({
     days: 4,
@@ -15,6 +17,13 @@ export const OffersSection: React.FC<OffersSectionProps> = ({ onAddToCart }) => 
     mins: 38,
     secs: 19
   });
+
+  // Only display ACTIVE offers on the frontend!
+  const activeOffers = offers.filter((o) => o.isActive !== false);
+
+  // Group into new arrivals / single items and bundles
+  const arrivalOffers = activeOffers.filter((o) => o.category === 'New Arrival' || !o.old);
+  const bundleOffers = activeOffers.filter((o) => o.category === 'Discount Bundle' || (o.old && o.old > o.price));
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -44,106 +53,156 @@ export const OffersSection: React.FC<OffersSectionProps> = ({ onAddToCart }) => 
     setTimeout(() => setCopied(false), 2000);
   };
 
+  if (activeOffers.length === 0) {
+    return null; // When admin hides all offers, section cleanly collapses
+  }
+
   return (
     <section id="offers" style={{ maxWidth: '1280px', margin: '0 auto', padding: '40px 16px 60px 16px' }}>
-      {/* 1. New Arrivals Cards */}
-      <div
-        style={{
-          borderRadius: '24px',
-          backgroundColor: '#FFFFFF',
-          border: '1px solid rgba(0,0,0,0.1)',
-          padding: '24px',
-          boxShadow: '0 10px 28px rgba(0,0,0,0.04)',
-          marginBottom: '28px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#121212', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#B77B3D', display: 'inline-block' }} />
-            New Arrivals
-          </h3>
-          <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '999px', backgroundColor: '#FFFBF5', border: '1px solid rgba(0,0,0,0.08)', fontWeight: 600 }}>
-            This week • 4 items
-          </span>
-        </div>
-
+      {/* 1. New Arrivals Cards (Filtered to Active Only) */}
+      {arrivalOffers.length > 0 && (
         <div
           style={{
-            marginTop: '18px',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-            gap: '14px'
+            borderRadius: '24px',
+            backgroundColor: '#FFFFFF',
+            border: '1px solid rgba(0,0,0,0.1)',
+            padding: '24px',
+            boxShadow: '0 10px 28px rgba(0,0,0,0.04)',
+            marginBottom: '28px'
           }}
         >
-          {newArrivals.map((item) => (
-            <div
-              key={item.id}
-              style={{
-                borderRadius: '16px',
-                backgroundColor: '#FFFBF5',
-                border: '1px solid rgba(0,0,0,0.08)',
-                padding: '14px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between'
-              }}
-              className="hover-lift"
-            >
-              <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#121212', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#B77B3D', display: 'inline-block' }} />
+              Active New Arrivals & Deals
+            </h3>
+            <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '999px', backgroundColor: '#FFFBF5', border: '1px solid rgba(0,0,0,0.08)', fontWeight: 600 }}>
+              Live in Wilgoda • {arrivalOffers.length} items
+            </span>
+          </div>
+
+          <div
+            style={{
+              marginTop: '18px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+              gap: '14px'
+            }}
+          >
+            {arrivalOffers.map((item) => {
+              const waOfferUrl = buildProductWhatsAppUrl({
+                productName: item.title,
+                price: item.price,
+                originalPrice: item.old,
+                discountPercent: item.discountPercent,
+                category: 'New Arrival Offer',
+                productPath: '#/offers'
+              });
+
+              return (
                 <div
+                  key={item.id}
                   style={{
-                    height: '96px',
-                    borderRadius: '12px',
-                    background: 'linear-gradient(135deg, #FFFFFF, #F0D9B5)',
-                    border: '1px solid rgba(0,0,0,0.05)',
+                    borderRadius: '16px',
+                    backgroundColor: '#FFFBF5',
+                    border: '1px solid rgba(0,0,0,0.08)',
+                    padding: '14px',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '32px'
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
                   }}
+                  className="hover-lift"
                 >
-                  {item.icon}
+                  <div>
+                    <div
+                      style={{
+                        height: '96px',
+                        borderRadius: '12px',
+                        background: 'linear-gradient(135deg, #FFFFFF, #F0D9B5)',
+                        border: '1px solid rgba(0,0,0,0.05)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '32px'
+                      }}
+                    >
+                      {item.icon || '🎁'}
+                    </div>
+
+                    <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ padding: '2px 8px', borderRadius: '999px', backgroundColor: '#121212', color: '#FFFFFF', fontSize: '9.5px', fontWeight: 800 }}>
+                        {item.badge || 'DEAL'}
+                      </span>
+                      {item.discountPercent && item.discountPercent > 0 && (
+                        <span style={{ padding: '2px 6px', borderRadius: '999px', backgroundColor: '#B77B3D', color: '#FFFFFF', fontSize: '9.5px', fontWeight: 800 }}>
+                          {item.discountPercent}% OFF
+                        </span>
+                      )}
+                      <span style={{ fontSize: '11px', color: 'rgba(0,0,0,0.5)' }}>In stock</span>
+                    </div>
+
+                    <h4 style={{ marginTop: '6px', fontSize: '13.5px', fontWeight: 700, color: '#121212', lineHeight: 1.3 }} className="line-clamp-2">
+                      {item.title}
+                    </h4>
+                  </div>
+
+                  <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <span style={{ fontWeight: 800, fontSize: '14px', color: '#121212' }}>
+                        Rs. {item.price.toLocaleString()}
+                      </span>
+                      {item.old && item.old > item.price && (
+                        <div style={{ fontSize: '11px', textDecoration: 'line-through', color: 'rgba(0,0,0,0.4)' }}>
+                          Rs. {item.old.toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button
+                        onClick={() => onAddToCart({ id: `offer-${item.id}`, title: item.title, price: item.price, type: 'product' })}
+                        style={{
+                          height: '28px',
+                          padding: '0 10px',
+                          borderRadius: '999px',
+                          backgroundColor: '#121212',
+                          color: '#FFFFFF',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          border: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Add
+                      </button>
+                      <a
+                        href={waOfferUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Order on WhatsApp"
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '50%',
+                          backgroundColor: '#25D366',
+                          color: '#FFFFFF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          textDecoration: 'none'
+                        }}
+                      >
+                        <MessageCircle size={14} />
+                      </a>
+                    </div>
+                  </div>
                 </div>
-
-                <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ padding: '2px 8px', borderRadius: '999px', backgroundColor: '#121212', color: '#FFFFFF', fontSize: '9.5px', fontWeight: 800 }}>
-                    {item.badge}
-                  </span>
-                  <span style={{ fontSize: '11px', color: 'rgba(0,0,0,0.5)' }}>In stock</span>
-                </div>
-
-                <h4 style={{ marginTop: '6px', fontSize: '13.5px', fontWeight: 700, color: '#121212', lineHeight: 1.3 }} className="line-clamp-2">
-                  {item.title}
-                </h4>
-              </div>
-
-              <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 800, fontSize: '14px', color: '#121212' }}>
-                  Rs. {item.price.toLocaleString()}
-                </span>
-                <button
-                  onClick={() => onAddToCart({ id: `new-${item.id}`, title: item.title, price: item.price, type: 'product' })}
-                  style={{
-                    height: '28px',
-                    padding: '0 12px',
-                    borderRadius: '999px',
-                    backgroundColor: '#121212',
-                    color: '#FFFFFF',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    border: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Add
-                </button>
-              </div>
-            </div>
-          ))}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* 2. Banner with Live Countdown Timer */}
+      {/* 2. Banner with Live Countdown Timer & Promo Code */}
       <div
         style={{
           position: 'relative',
@@ -189,7 +248,7 @@ export const OffersSection: React.FC<OffersSectionProps> = ({ onAddToCart }) => 
               }}
             >
               <Clock size={12} />
-              BACK TO SCHOOL • LIMITED TIME OFFER
+              BACK TO SCHOOL • ACTIVE OFFER
             </div>
 
             <h3
@@ -212,7 +271,12 @@ export const OffersSection: React.FC<OffersSectionProps> = ({ onAddToCart }) => 
 
             <div style={{ marginTop: '20px', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
               <a
-                href={`${siteConfig.socialMedia.whatsappChat}?text=${encodeURIComponent('Hi Unique Printers, I want to claim the SCHOOL20 promo offer.')}`}
+                href={buildProductWhatsAppUrl({
+                  productName: 'Back to School 20% OFF Promo (SCHOOL20)',
+                  category: 'Special Promo',
+                  productPath: '#/offers',
+                  customNote: 'I would like to claim the SCHOOL20 promo voucher at your shop.'
+                })}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -230,6 +294,7 @@ export const OffersSection: React.FC<OffersSectionProps> = ({ onAddToCart }) => 
                 }}
                 className="hover-lift"
               >
+                <MessageCircle size={16} style={{ color: '#25D366' }} />
                 Claim Offer on WhatsApp →
               </a>
 
@@ -258,139 +323,169 @@ export const OffersSection: React.FC<OffersSectionProps> = ({ onAddToCart }) => 
 
           {/* Countdown Clock Squares */}
           <div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px' }}>
+              Promotion Ends In:
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
               {[
-                { label: 'Days', val: String(timeLeft.days).padStart(2, '0') },
-                { label: 'Hours', val: String(timeLeft.hours).padStart(2, '0') },
-                { label: 'Mins', val: String(timeLeft.mins).padStart(2, '0') },
-                { label: 'Secs', val: String(timeLeft.secs).padStart(2, '0') }
-              ].map((c) => (
+                { label: 'DAYS', val: timeLeft.days },
+                { label: 'HRS', val: timeLeft.hours },
+                { label: 'MINS', val: timeLeft.mins },
+                { label: 'SECS', val: timeLeft.secs }
+              ].map((box, i) => (
                 <div
-                  key={c.label}
+                  key={i}
                   style={{
-                    borderRadius: '16px',
-                    backgroundColor: '#FFFFFF',
-                    color: '#121212',
-                    padding: '12px 6px',
+                    backgroundColor: 'rgba(255,255,255,0.08)',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    borderRadius: '14px',
+                    padding: '12px 14px',
                     textAlign: 'center',
-                    border: '1px solid rgba(0,0,0,0.1)',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                    minWidth: '60px'
                   }}
                 >
-                  <div style={{ fontSize: '24px', fontWeight: 800, lineHeight: 1 }}>{c.val}</div>
-                  <div style={{ fontSize: '9.5px', letterSpacing: '0.12em', marginTop: '4px', opacity: 0.65 }}>
-                    {c.label.toUpperCase()}
+                  <div style={{ fontSize: '24px', fontWeight: 800, color: '#F5D6A8' }}>
+                    {String(box.val).padStart(2, '0')}
+                  </div>
+                  <div style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.5)' }}>
+                    {box.label}
                   </div>
                 </div>
               ))}
-            </div>
-            <div style={{ marginTop: '12px', fontSize: '11px', color: 'rgba(255,255,255,0.55)', textAlign: 'center' }}>
-              Offer ends soon • 112 people claimed in Wilgoda
             </div>
           </div>
         </div>
       </div>
 
       {/* 3. Sale Bundles */}
-      <div
-        style={{
-          borderRadius: '24px',
-          backgroundColor: '#FFFFFF',
-          border: '1px solid rgba(0,0,0,0.1)',
-          padding: '24px',
-          boxShadow: '0 10px 28px rgba(0,0,0,0.04)'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#121212', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#EF4444', display: 'inline-block' }} />
-            Discounted Sale Bundles
-          </h3>
-          <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '999px', backgroundColor: '#FEF2F2', color: '#B91C1C', border: '1px solid #FECACA', fontWeight: 700 }}>
-            SAVE UP TO 22%
-          </span>
-        </div>
+      {bundleOffers.length > 0 && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#121212', margin: 0 }}>
+              Special Discount Bundles & Packages
+            </h3>
+            <span style={{ fontSize: '12px', color: '#B77B3D', fontWeight: 700 }}>
+              Active In Store
+            </span>
+          </div>
 
-        <div
-          style={{
-            marginTop: '18px',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            gap: '16px'
-          }}
-        >
-          {saleBundles.map((item) => (
-            <div
-              key={item.id}
-              style={{
-                borderRadius: '18px',
-                backgroundColor: '#FFFBF5',
-                border: '1px solid rgba(0,0,0,0.08)',
-                padding: '16px',
-                display: 'flex',
-                gap: '14px',
-                alignItems: 'center'
-              }}
-              className="hover-lift"
-            >
-              <div
-                style={{
-                  width: '74px',
-                  height: '74px',
-                  borderRadius: '14px',
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid rgba(0,0,0,0.08)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '30px',
-                  flexShrink: 0
-                }}
-              >
-                {item.icon}
-              </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '16px'
+            }}
+          >
+            {bundleOffers.map((bundle) => {
+              const waBundleUrl = buildProductWhatsAppUrl({
+                productName: bundle.title,
+                price: bundle.price,
+                originalPrice: bundle.old,
+                discountPercent: bundle.discountPercent,
+                category: 'Sale Bundle',
+                productPath: '#/offers'
+              });
 
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ padding: '2px 8px', borderRadius: '999px', backgroundColor: '#B77B3D', color: '#FFFFFF', fontSize: '9.5px', fontWeight: 800 }}>
-                  {item.off}
-                </span>
-                <h4 style={{ marginTop: '4px', fontSize: '13.5px', fontWeight: 700, color: '#121212', lineHeight: 1.3 }} className="line-clamp-1">
-                  {item.title}
-                </h4>
-
-                <div style={{ marginTop: '4px', display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                  <span style={{ fontWeight: 800, fontSize: '14px', color: '#121212' }}>
-                    Rs. {item.price.toLocaleString()}
-                  </span>
-                  {item.old && (
-                    <span style={{ fontSize: '11px', textDecoration: 'line-through', opacity: 0.45 }}>
-                      Rs. {item.old.toLocaleString()}
-                    </span>
-                  )}
-                </div>
-
-                <button
-                  onClick={() => onAddToCart({ id: `sale-${item.id}`, title: item.title, price: item.price, type: 'product' })}
+              return (
+                <div
+                  key={bundle.id}
                   style={{
-                    marginTop: '8px',
-                    height: '28px',
-                    padding: '0 14px',
-                    borderRadius: '999px',
-                    backgroundColor: '#121212',
-                    color: '#FFFFFF',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    border: 'none',
-                    cursor: 'pointer'
+                    borderRadius: '20px',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid rgba(0,0,0,0.08)',
+                    padding: '20px',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
                   }}
+                  className="hover-lift"
                 >
-                  Add to Cart
-                </button>
-              </div>
-            </div>
-          ))}
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '28px' }}>{bundle.icon || '🎒'}</span>
+                      <span
+                        style={{
+                          padding: '3px 10px',
+                          borderRadius: '999px',
+                          backgroundColor: '#121212',
+                          color: '#FFFFFF',
+                          fontSize: '11px',
+                          fontWeight: 800
+                        }}
+                      >
+                        {bundle.off || (bundle.discountPercent ? `${bundle.discountPercent}% OFF` : 'DEAL')}
+                      </span>
+                    </div>
+
+                    <h4 style={{ marginTop: '14px', fontSize: '15px', fontWeight: 700, color: '#121212', lineHeight: 1.3 }}>
+                      {bundle.title}
+                    </h4>
+
+                    {bundle.description && (
+                      <p style={{ marginTop: '6px', fontSize: '12px', color: 'rgba(0,0,0,0.5)', lineHeight: 1.4 }}>
+                        {bundle.description}
+                      </p>
+                    )}
+                  </div>
+
+                  <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontSize: '16px', fontWeight: 800, color: '#121212' }}>
+                        Rs. {bundle.price.toLocaleString()}
+                      </div>
+                      {bundle.old && (
+                        <div style={{ fontSize: '11.5px', textDecoration: 'line-through', color: 'rgba(0,0,0,0.4)' }}>
+                          Rs. {bundle.old.toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        onClick={() => onAddToCart({ id: `bundle-${bundle.id}`, title: bundle.title, price: bundle.price, type: 'product' })}
+                        style={{
+                          height: '32px',
+                          padding: '0 14px',
+                          borderRadius: '999px',
+                          backgroundColor: '#121212',
+                          color: '#FFFFFF',
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          border: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Add to Cart
+                      </button>
+                      <a
+                        href={waBundleUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          height: '32px',
+                          padding: '0 10px',
+                          borderRadius: '999px',
+                          backgroundColor: '#25D366',
+                          color: '#FFFFFF',
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          textDecoration: 'none'
+                        }}
+                      >
+                        <MessageCircle size={14} />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 };

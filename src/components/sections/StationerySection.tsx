@@ -1,10 +1,19 @@
 import React from 'react';
-import { ArrowUpRight, Sparkles } from 'lucide-react';
-import { stationeryList } from '../../data/sampleData';
+import { ArrowUpRight, Sparkles, ArrowRight } from 'lucide-react';
+import { useShopStore } from '../../store/shopStore';
 import { siteConfig } from '../../config/siteConfig';
 
-export const StationerySection: React.FC = () => {
-  const whatsappBulkUrl = `${siteConfig.socialMedia.whatsappChat}?text=${encodeURIComponent('Hi Unique Printers, I want to inquire about bulk stationery order / wholesale pricing for schools.')}`;
+interface StationerySectionProps {
+  onViewMore?: () => void;
+}
+
+export const StationerySection: React.FC<StationerySectionProps> = ({ onViewMore }) => {
+  const { stationeryItems } = useShopStore();
+  const displayItems = stationeryItems.slice(0, 6);
+
+  const whatsappBulkUrl = `${siteConfig.socialMedia.whatsappChat}?text=${encodeURIComponent(
+    'Hi Unique Printers, I want to inquire about bulk stationery order / wholesale pricing for schools and offices.'
+  )}`;
 
   return (
     <div
@@ -22,9 +31,14 @@ export const StationerySection: React.FC = () => {
       <div>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h3 className="serif" style={{ fontSize: '24px', color: '#FFFFFF', margin: 0 }}>
-            Stationery Items
-          </h3>
+          <div>
+            <h3 className="serif" style={{ fontSize: '24px', color: '#FFFFFF', margin: 0 }}>
+              Stationery & School Supplies
+            </h3>
+            <p style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.6)', marginTop: '2px' }}>
+              CR Books, Atlas & Deli Pens, Math Tools & Art Supplies
+            </p>
+          </div>
           <span
             style={{
               padding: '3px 10px',
@@ -40,62 +54,121 @@ export const StationerySection: React.FC = () => {
           </span>
         </div>
 
-        {/* List of items */}
+        {/* List of items from Store */}
         <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {stationeryList.map((item, idx) => (
+          {displayItems.map((item, idx) => (
             <div
-              key={idx}
+              key={item.id}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '10px 0',
-                borderBottom: idx === stationeryList.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.08)'
+                borderBottom: idx === displayItems.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.08)'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
                 <div
                   style={{
-                    width: '30px',
-                    height: '30px',
+                    width: '32px',
+                    height: '32px',
                     borderRadius: '50%',
                     backgroundColor: 'rgba(183, 123, 61, 0.2)',
                     border: '1px solid rgba(183, 123, 61, 0.35)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '13px',
-                    color: '#F5D6A8'
+                    fontSize: '15px',
+                    flexShrink: 0
                   }}
                 >
-                  ✦
+                  {item.icon || '✏️'}
                 </div>
-                <span style={{ fontSize: '13.5px', fontWeight: 500, color: 'rgba(255,255,255,0.9)' }}>
-                  {item.name}
-                </span>
+                <div style={{ minWidth: 0, paddingRight: '8px' }}>
+                  <div 
+                    style={{ 
+                      fontSize: '13.5px', 
+                      fontWeight: 600, 
+                      color: 'rgba(255,255,255,0.95)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}
+                  >
+                    {item.name}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
+                    {item.category}
+                  </div>
+                </div>
               </div>
 
-              <span
-                style={{
-                  fontSize: '11px',
-                  padding: '2px 8px',
-                  borderRadius: '999px',
-                  backgroundColor: '#FFFFFF',
-                  color: '#000000',
-                  fontWeight: 700
-                }}
-              >
-                {item.count}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                {item.discountPercent && item.discountPercent > 0 && (
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      padding: '2px 6px',
+                      borderRadius: '999px',
+                      backgroundColor: 'rgba(183,123,61,0.3)',
+                      color: '#F5D6A8',
+                      fontWeight: 700
+                    }}
+                  >
+                    -{item.discountPercent}%
+                  </span>
+                )}
+                <span
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    color: '#FFFFFF'
+                  }}
+                >
+                  Rs. {item.price.toLocaleString()}
+                </span>
+              </div>
             </div>
           ))}
         </div>
+
+        {/* View More Link Button to dedicated Stationery Page */}
+        <button
+          onClick={() => {
+            if (onViewMore) {
+              onViewMore();
+            } else {
+              window.location.hash = '#/stationery';
+            }
+          }}
+          style={{
+            marginTop: '16px',
+            width: '100%',
+            height: '42px',
+            borderRadius: '999px',
+            backgroundColor: '#1E1E1E',
+            border: '1px solid rgba(255,255,255,0.15)',
+            color: '#F5D6A8',
+            fontSize: '13px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            transition: 'background-color 0.2s'
+          }}
+          className="hover-lift"
+        >
+          <span>View More Stationery & School Supplies (with filters)</span>
+          <ArrowRight size={15} />
+        </button>
       </div>
 
       {/* Bulk wholesale callout */}
       <div
         style={{
-          marginTop: '24px',
+          marginTop: '22px',
           borderRadius: '16px',
           backgroundColor: '#FFFFFF',
           color: '#121212',

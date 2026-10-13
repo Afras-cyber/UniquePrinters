@@ -25,14 +25,17 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const totalAmount = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const generateWhatsAppOrderUrl = () => {
-    let message = `*NEW ORDER / INQUIRY - UNIQUE PRINTERS*\n`;
-    message += `---------------------------------\n`;
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://uniqueprinters.lk';
+    let message = `Hello Unique Printers team! 👋✨\n\n`;
+    message += `I would like to place an order from your website:\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━\n`;
     items.forEach((item, idx) => {
-      message += `${idx + 1}. ${item.title} (x${item.quantity}) - Rs. ${(item.price * item.quantity).toLocaleString()}\n`;
+      message += `${idx + 1}. *${item.title}* (Qty: ${item.quantity}) — Rs. ${(item.price * item.quantity).toLocaleString()}\n`;
     });
-    message += `---------------------------------\n`;
-    message += `*Total Amount:* Rs. ${totalAmount.toLocaleString()}\n\n`;
-    message += `Hi Unique Printers, please let me know availability and delivery/pickup details at your Wilgoda shop!`;
+    message += `━━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `💰 *Total Estimated Amount:* Rs. ${totalAmount.toLocaleString()}\n`;
+    message += `🔗 Shop Link: ${origin}/#/\n\n`;
+    message += `Could you please confirm item availability and let me know when I can collect them from your Wilgoda shop? Thank you! 😊`;
 
     return `${siteConfig.socialMedia.whatsappChat}?text=${encodeURIComponent(message)}`;
   };
