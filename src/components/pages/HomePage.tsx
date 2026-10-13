@@ -65,14 +65,14 @@ export const HomePage: React.FC<HomePageProps> = ({
         style={{
           maxWidth: '1280px',
           margin: '0 auto',
-          padding: '50px 16px 65px 16px'
+          padding: 'clamp(28px, 4vw, 50px) 16px clamp(36px, 5vw, 65px) 16px'
         }}
       >
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: '24px'
+            gap: '20px'
           }}
         >
           <BooksSection
@@ -82,6 +82,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           />
           <StationerySection
             onViewMore={() => onNavigatePage('stationery')}
+            onAddToCart={onAddToCart}
           />
         </div>
       </section>

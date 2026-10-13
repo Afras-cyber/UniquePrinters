@@ -255,9 +255,9 @@ export const App: React.FC = () => {
       {/* Announcement notice if enabled in site.config.json */}
       {currentPage !== 'admin' && <AnnouncementBanner />}
 
-      {/* Header View: Mobile Header Hero on mobile; Sticky Navigation on Desktop */}
+      {/* Header View: Mobile Header Hero only on home page; Sticky Header on all other pages & desktop */}
       {currentPage !== 'admin' && (
-        showMobileHeader ? (
+        showMobileHeader && currentPage === 'home' ? (
           <MobileHeaderHero
             onOpenSearch={() => setSearchOpen(true)}
             onToggleForceDesktop={() => setForceDesktop(true)}
@@ -277,7 +277,7 @@ export const App: React.FC = () => {
       )}
 
       {/* Main Content Area */}
-      <main className={showMobileHeader ? 'mobile-bottom-space' : ''} style={{ flex: 1 }}>
+      <main className={showMobileHeader && currentPage === 'home' ? 'mobile-bottom-space' : ''} style={{ flex: 1 }}>
         {/* ── Page Router with separate URLs ── */}
         {currentPage === 'home' && (
           <>

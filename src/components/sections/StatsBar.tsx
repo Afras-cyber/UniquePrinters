@@ -15,39 +15,37 @@ export const StatsBar: React.FC = () => {
         color: '#F5E9D3',
         borderTop: '1px solid rgba(255,255,255,0.1)',
         borderBottom: '1px solid rgba(255,255,255,0.1)',
-        padding: '44px 16px'
+        padding: 'clamp(24px, 4vw, 44px) 16px'
       }}
     >
       <div
+        className="stats-grid"
         style={{
           maxWidth: '1280px',
-          margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '20px'
+          margin: '0 auto'
         }}
       >
         {stats.map((item, idx) => (
           <div
             key={idx}
             style={{
-              borderRadius: '20px',
+              borderRadius: '16px',
               backgroundColor: 'rgba(255, 255, 255, 0.05)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
-              padding: '22px 20px'
+              padding: 'clamp(14px, 2.5vw, 22px) clamp(12px, 2vw, 20px)'
             }}
           >
-            <div className="serif" style={{ fontSize: '30px', color: '#FFFFFF', lineHeight: 1 }}>
+            <div className="serif" style={{ fontSize: 'clamp(20px, 3.5vw, 30px)', color: '#FFFFFF', lineHeight: 1 }}>
               {item.num}
             </div>
-            <div style={{ marginTop: '8px', fontSize: '13px', color: 'rgba(255,255,255,0.65)', lineHeight: 1.3 }}>
+            <div style={{ marginTop: '8px', fontSize: 'clamp(11.5px, 2vw, 13px)', color: 'rgba(255,255,255,0.7)', lineHeight: 1.3 }}>
               {item.label}
             </div>
             <div
               style={{
-                marginTop: '16px',
+                marginTop: '12px',
                 height: '2px',
-                width: '40px',
+                width: '32px',
                 backgroundColor: '#B77B3D',
                 borderRadius: '999px'
               }}

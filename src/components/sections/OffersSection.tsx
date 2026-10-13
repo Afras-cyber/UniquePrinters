@@ -58,7 +58,7 @@ export const OffersSection: React.FC<OffersSectionProps> = ({ onAddToCart }) => 
   }
 
   return (
-    <section id="offers" style={{ maxWidth: '1280px', margin: '0 auto', padding: '40px 16px 60px 16px' }}>
+    <section id="offers" style={{ maxWidth: '1280px', margin: '0 auto', padding: 'clamp(28px, 4vw, 44px) 16px clamp(36px, 5vw, 60px) 16px' }}>
       {/* 1. New Arrivals Cards (Filtered to Active Only) */}
       {arrivalOffers.length > 0 && (
         <div
@@ -66,29 +66,23 @@ export const OffersSection: React.FC<OffersSectionProps> = ({ onAddToCart }) => 
             borderRadius: '24px',
             backgroundColor: '#FFFFFF',
             border: '1px solid rgba(0,0,0,0.1)',
-            padding: '24px',
+            padding: 'clamp(16px, 3vw, 24px)',
             boxShadow: '0 10px 28px rgba(0,0,0,0.04)',
-            marginBottom: '28px'
+            marginBottom: '24px'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#121212', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+            <h3 style={{ fontSize: 'clamp(16px, 3.5vw, 18px)', fontWeight: 800, color: '#121212', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#B77B3D', display: 'inline-block' }} />
               Active New Arrivals & Deals
             </h3>
-            <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '999px', backgroundColor: '#FFFBF5', border: '1px solid rgba(0,0,0,0.08)', fontWeight: 600 }}>
+            <span style={{ fontSize: '11px', padding: '3px 10px', borderRadius: '999px', backgroundColor: '#FFFBF5', border: '1px solid rgba(0,0,0,0.08)', fontWeight: 600, whiteSpace: 'nowrap' }}>
               Live in Wilgoda • {arrivalOffers.length} items
             </span>
           </div>
 
-          <div
-            style={{
-              marginTop: '18px',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-              gap: '14px'
-            }}
-          >
+          {/* Desktop Grid for New Arrivals */}
+          <div className="offers-desktop-grid">
             {arrivalOffers.map((item) => {
               const waOfferUrl = buildProductWhatsAppUrl({
                 productName: item.title,
@@ -192,6 +186,120 @@ export const OffersSection: React.FC<OffersSectionProps> = ({ onAddToCart }) => 
                         }}
                       >
                         <MessageCircle size={14} />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Mobile Swipe Carousel for New Arrivals */}
+          <div className="offers-mobile-carousel no-scrollbar">
+            {arrivalOffers.map((item) => {
+              const waOfferUrl = buildProductWhatsAppUrl({
+                productName: item.title,
+                price: item.price,
+                originalPrice: item.old,
+                discountPercent: item.discountPercent,
+                category: 'New Arrival Offer',
+                productPath: '#/offers'
+              });
+
+              return (
+                <div
+                  key={`mob-arrival-${item.id}`}
+                  className="offers-mobile-card hover-lift"
+                  style={{
+                    borderRadius: '16px',
+                    backgroundColor: '#FFFBF5',
+                    border: '1px solid rgba(0,0,0,0.08)',
+                    padding: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        height: '68px',
+                        borderRadius: '10px',
+                        background: 'linear-gradient(135deg, #FFFFFF, #F0D9B5)',
+                        border: '1px solid rgba(0,0,0,0.05)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '26px'
+                      }}
+                    >
+                      {item.icon || '🎁'}
+                    </div>
+
+                    <div style={{ marginTop: '9px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span style={{ padding: '2px 7px', borderRadius: '999px', backgroundColor: '#121212', color: '#FFFFFF', fontSize: '9px', fontWeight: 800 }}>
+                        {item.badge || 'DEAL'}
+                      </span>
+                      {item.discountPercent && item.discountPercent > 0 && (
+                        <span style={{ padding: '2px 5px', borderRadius: '999px', backgroundColor: '#B77B3D', color: '#FFFFFF', fontSize: '9px', fontWeight: 800 }}>
+                          {item.discountPercent}% OFF
+                        </span>
+                      )}
+                      <span style={{ fontSize: '10px', color: 'rgba(0,0,0,0.5)' }}>In stock</span>
+                    </div>
+
+                    <h4 style={{ marginTop: '5px', fontSize: '13px', fontWeight: 700, color: '#121212', lineHeight: 1.25 }} className="line-clamp-2">
+                      {item.title}
+                    </h4>
+                  </div>
+
+                  <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <span style={{ fontWeight: 800, fontSize: '13.5px', color: '#121212' }}>
+                        Rs. {item.price.toLocaleString()}
+                      </span>
+                      {item.old && item.old > item.price && (
+                        <div style={{ fontSize: '10.5px', textDecoration: 'line-through', color: 'rgba(0,0,0,0.4)' }}>
+                          Rs. {item.old.toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button
+                        onClick={() => onAddToCart({ id: `offer-${item.id}`, title: item.title, price: item.price, type: 'product' })}
+                        style={{
+                          height: '28px',
+                          padding: '0 10px',
+                          borderRadius: '999px',
+                          backgroundColor: '#121212',
+                          color: '#FFFFFF',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          border: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Add
+                      </button>
+                      <a
+                        href={waOfferUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Order on WhatsApp"
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '50%',
+                          backgroundColor: '#25D366',
+                          color: '#FFFFFF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          textDecoration: 'none'
+                        }}
+                      >
+                        <MessageCircle size={13} />
                       </a>
                     </div>
                   </div>
@@ -360,8 +468,8 @@ export const OffersSection: React.FC<OffersSectionProps> = ({ onAddToCart }) => 
       {/* 3. Sale Bundles */}
       {bundleOffers.length > 0 && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#121212', margin: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+            <h3 style={{ fontSize: 'clamp(16px, 3.5vw, 18px)', fontWeight: 800, color: '#121212', margin: 0 }}>
               Special Discount Bundles & Packages
             </h3>
             <span style={{ fontSize: '12px', color: '#B77B3D', fontWeight: 700 }}>
@@ -369,13 +477,8 @@ export const OffersSection: React.FC<OffersSectionProps> = ({ onAddToCart }) => 
             </span>
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '16px'
-            }}
-          >
+          {/* Desktop Grid for Bundles */}
+          <div className="bundles-desktop-grid">
             {bundleOffers.map((bundle) => {
               const waBundleUrl = buildProductWhatsAppUrl({
                 productName: bundle.title,
@@ -477,6 +580,116 @@ export const OffersSection: React.FC<OffersSectionProps> = ({ onAddToCart }) => 
                         }}
                       >
                         <MessageCircle size={14} />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Mobile Swipeable Carousel for Bundles */}
+          <div className="bundles-mobile-carousel no-scrollbar">
+            {bundleOffers.map((bundle) => {
+              const waBundleUrl = buildProductWhatsAppUrl({
+                productName: bundle.title,
+                price: bundle.price,
+                originalPrice: bundle.old,
+                discountPercent: bundle.discountPercent,
+                category: 'Sale Bundle',
+                productPath: '#/offers'
+              });
+
+              return (
+                <div
+                  key={`mob-bundle-${bundle.id}`}
+                  className="bundles-mobile-card hover-lift"
+                  style={{
+                    borderRadius: '18px',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid rgba(0,0,0,0.08)',
+                    padding: '16px',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.03)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '26px' }}>{bundle.icon || '🎒'}</span>
+                      <span
+                        style={{
+                          padding: '3px 9px',
+                          borderRadius: '999px',
+                          backgroundColor: '#121212',
+                          color: '#FFFFFF',
+                          fontSize: '10.5px',
+                          fontWeight: 800
+                        }}
+                      >
+                        {bundle.off || (bundle.discountPercent ? `${bundle.discountPercent}% OFF` : 'DEAL')}
+                      </span>
+                    </div>
+
+                    <h4 style={{ marginTop: '10px', fontSize: '14.5px', fontWeight: 700, color: '#121212', lineHeight: 1.3 }}>
+                      {bundle.title}
+                    </h4>
+
+                    {bundle.description && (
+                      <p style={{ marginTop: '4px', fontSize: '11.5px', color: 'rgba(0,0,0,0.55)', lineHeight: 1.4 }} className="line-clamp-2">
+                        {bundle.description}
+                      </p>
+                    )}
+                  </div>
+
+                  <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: 800, color: '#121212' }}>
+                        Rs. {bundle.price.toLocaleString()}
+                      </div>
+                      {bundle.old && (
+                        <div style={{ fontSize: '11px', textDecoration: 'line-through', color: 'rgba(0,0,0,0.4)' }}>
+                          Rs. {bundle.old.toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '5px' }}>
+                      <button
+                        onClick={() => onAddToCart({ id: `bundle-${bundle.id}`, title: bundle.title, price: bundle.price, type: 'product' })}
+                        style={{
+                          height: '32px',
+                          padding: '0 12px',
+                          borderRadius: '999px',
+                          backgroundColor: '#121212',
+                          color: '#FFFFFF',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          border: 'none',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Add to Cart
+                      </button>
+                      <a
+                        href={waBundleUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Order bundle on WhatsApp"
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          backgroundColor: '#25D366',
+                          color: '#FFFFFF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          textDecoration: 'none'
+                        }}
+                      >
+                        <MessageCircle size={15} />
                       </a>
                     </div>
                   </div>
